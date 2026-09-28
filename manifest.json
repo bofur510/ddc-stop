@@ -1,0 +1,43 @@
+{
+  "id": "/ddc-stop-survey/",
+  "name": "동두천 버스정류소 현장조사",
+  "short_name": "정류소조사",
+  "description": "동두천시 버스정류소 409개소를 현장에서 확인하고 점검 기록을 남기는 앱입니다. 통신 없이 사용할 수 있습니다.",
+  "start_url": "./index.html",
+  "scope": "./",
+  "display": "standalone",
+  "display_override": [
+    "standalone",
+    "minimal-ui",
+    "browser"
+  ],
+  "orientation": "portrait",
+  "background_color": "#fafbfc",
+  "theme_color": "#4e6b12",
+  "lang": "ko-KR",
+  "dir": "ltr",
+  "categories": [
+    "utilities",
+    "productivity"
+  ],
+  "icons": [
+    {
+      "src": "icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "icon-512-maskable.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
+    }
+  ]
+}

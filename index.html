@@ -1,0 +1,693 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#4e6b12">
+<link rel="manifest" href="manifest.json">
+<link rel="icon" href="icon-192.png">
+<link rel="apple-touch-icon" href="icon-192.png">
+<title>동두천 정류소 현장조사</title>
+<style>
+:root{
+  --gov:#4e6b12; --gov-dk:#3a5009; --gov-br:#8cb61c; --gov-pale:#f2f6ea;
+  --ink:#14171c; --sub:#4a4f57; --dim:#8a8f97;
+  --line:#d7dae0; --line-lt:#e9ebef; --paper:#fafbfc;
+  --warn:#c0392b; --ok:#2f7d5c;
+  --ui:-apple-system,"Malgun Gothic","맑은 고딕",sans-serif;
+  --mono:"SF Mono",Consolas,monospace;
+}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{margin:0;padding:0;height:100%;font-family:var(--ui);color:var(--ink);
+  background:var(--paper);font-size:15px;overscroll-behavior:none}
+body{display:flex;flex-direction:column}
+
+/* 머리말 */
+.top{background:var(--gov);color:#fff;padding:calc(env(safe-area-inset-top) + 10px) 14px 10px;
+  flex:none}
+.top h1{margin:0;font-size:16px;font-weight:700;letter-spacing:-.02em}
+.top p{margin:2px 0 0;font-size:11px;opacity:.85}
+.sum{display:flex;gap:10px;margin-top:8px;font-size:11.5px}
+.sum b{font-family:var(--mono);font-size:15px;display:block;font-weight:700}
+
+/* 검색 */
+.bar{flex:none;background:#fff;border-bottom:1px solid var(--line);padding:8px 12px}
+.bar input{width:100%;height:40px;padding:0 12px;font-size:15px;font-family:inherit;
+  border:1px solid var(--line);border-radius:8px;background:var(--paper)}
+.chips{display:flex;gap:6px;margin-top:8px;overflow-x:auto;padding-bottom:2px;
+  scrollbar-width:none}
+.chips::-webkit-scrollbar{display:none}
+.chip{flex:none;padding:6px 12px;font-size:13px;border:1px solid var(--line);
+  border-radius:20px;background:#fff;color:var(--sub);white-space:nowrap}
+.chip[aria-pressed="true"]{background:var(--gov);border-color:var(--gov);color:#fff;font-weight:600}
+
+/* 화면 전환 */
+.tabs{flex:none;display:flex;background:#fff;border-bottom:1px solid var(--line)}
+.tabs button{flex:1;padding:11px;border:0;background:none;font-family:inherit;
+  font-size:14px;font-weight:600;color:var(--dim);border-bottom:2.5px solid transparent}
+.tabs button[aria-pressed="true"]{color:var(--gov);border-bottom-color:var(--gov)}
+
+/* 지도 */
+.mapwrap{flex:1;position:relative;overflow:hidden;background:#eef1f4;touch-action:none}
+.mapwrap canvas{display:block;width:100%;height:100%}
+.mapinfo{position:absolute;left:10px;right:74px;bottom:10px;background:rgba(255,255,255,.96);
+  border-radius:10px;padding:10px 12px;font-size:13px;box-shadow:0 2px 10px rgba(0,0,0,.18);
+  line-height:1.45}
+.mapinfo b{font-size:15px;display:block;margin-bottom:2px;letter-spacing:-.02em}
+.mapinfo em{font-style:normal;color:var(--dim);font-size:11.5px}
+.mapinfo button{margin-top:8px;width:100%;padding:10px;border:0;border-radius:7px;
+  background:var(--gov);color:#fff;font-family:inherit;font-size:13.5px;font-weight:600}
+.mapzoom{position:absolute;right:10px;top:10px;display:flex;flex-direction:column;gap:5px}
+.mapzoom button{width:38px;height:38px;border:1px solid var(--line);background:rgba(255,255,255,.96);
+  border-radius:8px;font-size:19px;color:var(--sub);font-family:inherit}
+
+/* 목록 */
+.list{flex:1;overflow-y:auto;-webkit-overflow-scrolling:touch;padding-bottom:20px}
+.item{background:#fff;border-bottom:1px solid var(--line-lt);padding:11px 14px;
+  display:flex;gap:10px;align-items:flex-start}
+.item:active{background:var(--gov-pale)}
+.mk{flex:none;width:11px;height:11px;margin-top:4px;border:1.5px solid #fff;
+  box-shadow:0 0 0 1px rgba(0,0,0,.25)}
+.mk.밀폐형{background:#3a5009;border-radius:2px}
+.mk.개방형{background:#8cb61c;border-radius:50%}
+.mk.표지판형{background:#8c8c82;transform:rotate(45deg)}
+.mk.미확인{background:#fff;border:2px solid #cdcdc2;border-radius:50%;box-shadow:none}
+.it-b{flex:1;min-width:0}
+.it-n{font-size:15px;font-weight:600;letter-spacing:-.02em;line-height:1.3}
+.it-s{font-size:12px;color:var(--dim);margin-top:2px;
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.it-f{display:flex;flex-wrap:wrap;gap:4px;margin-top:5px}
+.f{font-size:10.5px;padding:1px 6px;border-radius:3px;background:var(--gov-pale);
+  color:var(--gov-dk);font-weight:600}
+.f.no{background:#f4f5f7;color:var(--dim);font-weight:400}
+.it-d{flex:none;text-align:right;font-family:var(--mono);font-size:12px;color:var(--gov);
+  font-weight:700;padding-top:2px}
+.it-d em{display:block;font-style:normal;font-size:10px;color:var(--dim);font-weight:400}
+
+/* 상세 */
+.sheet{position:fixed;inset:0;z-index:50;background:rgba(20,23,28,.45);
+  display:none;align-items:flex-end}
+.sheet.on{display:flex}
+.sh{background:#fff;width:100%;max-height:88%;overflow-y:auto;border-radius:16px 16px 0 0;
+  padding:0 0 calc(env(safe-area-inset-bottom) + 16px)}
+.sh-h{position:sticky;top:0;background:#fff;padding:14px 16px 10px;
+  border-bottom:2px solid var(--gov);display:flex;align-items:flex-start;gap:10px}
+.sh-h h2{margin:0;font-size:18px;font-weight:700;letter-spacing:-.02em;flex:1;line-height:1.25}
+.sh-h button{flex:none;width:30px;height:30px;border:0;background:var(--paper);
+  border-radius:50%;font-size:17px;color:var(--sub)}
+.sh-b{padding:12px 16px}
+table.d{width:100%;border-collapse:collapse;font-size:13.5px}
+table.d th,table.d td{padding:7px 8px;border-bottom:1px solid var(--line-lt);text-align:left}
+table.d th{width:82px;color:var(--sub);font-weight:500;background:var(--paper)}
+table.d td{font-family:var(--mono)}
+table.d td.tx{font-family:var(--ui)}
+.sec{font-size:11.5px;font-weight:700;color:var(--gov);letter-spacing:.06em;
+  margin:16px 0 6px;padding-bottom:4px;border-bottom:1px solid var(--line)}
+.acts{display:flex;gap:8px;margin-top:16px}
+.acts a,.acts button{flex:1;text-align:center;padding:12px;border-radius:8px;
+  font-size:14px;font-weight:600;text-decoration:none;border:0;font-family:inherit}
+.acts .go{background:var(--gov);color:#fff}
+.acts .chk{background:#fff;color:var(--gov);border:1.5px solid var(--gov)}
+.note{font-size:11.5px;color:var(--dim);line-height:1.6;margin:10px 0 0}
+
+/* 점검 */
+.chks{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px}
+.chks label{font-size:13px;padding:8px 12px;border:1px solid var(--line);border-radius:8px;
+  background:#fff;display:flex;align-items:center;gap:6px}
+.chks input{width:17px;height:17px;accent-color:var(--gov)}
+textarea{width:100%;min-height:70px;padding:10px;font-size:14px;font-family:inherit;
+  border:1px solid var(--line);border-radius:8px;margin-top:8px;background:var(--paper)}
+.saved{font-size:11.5px;color:var(--ok);font-weight:600;margin-top:6px}
+
+.empty{padding:40px 20px;text-align:center;color:var(--dim);font-size:14px;line-height:1.7}
+.gps{position:fixed;right:14px;bottom:calc(env(safe-area-inset-bottom) + 14px);z-index:40;
+  width:52px;height:52px;border-radius:50%;background:var(--gov);color:#fff;border:0;
+  box-shadow:0 3px 12px rgba(0,0,0,.28);font-size:12px;font-weight:700;line-height:1.2}
+.gps.on{background:var(--gov-dk)}
+.toast{position:fixed;left:50%;transform:translateX(-50%);
+  bottom:calc(env(safe-area-inset-bottom) + 80px);z-index:60;
+  background:rgba(20,23,28,.9);color:#fff;padding:10px 16px;border-radius:20px;
+  font-size:13px;opacity:0;transition:opacity .2s;pointer-events:none}
+.toast.on{opacity:1}
+</style>
+</head>
+<body>
+
+<div class="top">
+  <h1>동두천 버스정류소 현장조사</h1>
+  <p>교통행정과 · 인터넷 없이 쓸 수 있습니다 · v1.10 (2026.09.22)</p>
+  <div class="sum">
+    <span><b id="s-n">0</b>정류소</span>
+    <span><b id="s-b">0</b>BIT</span>
+    <span><b id="s-c">0</b>점검완료</span>
+  </div>
+</div>
+
+<div class="bar">
+  <input id="q" type="search" placeholder="정류소명 · 번호 검색" autocomplete="off">
+  <div class="chips" id="chips"></div>
+</div>
+<div class="tabs">
+  <button type="button" id="t-list" aria-pressed="true">목록</button>
+  <button type="button" id="t-map" aria-pressed="false">지도</button>
+</div>
+
+<div class="list" id="list"></div>
+<div class="mapwrap" id="mapwrap" hidden>
+  <canvas id="cv"></canvas>
+  <div class="mapinfo" id="mapinfo">지도를 눌러 정류소를 선택하세요</div>
+  <div class="mapzoom">
+    <button type="button" id="z-in">+</button>
+    <button type="button" id="z-out">−</button>
+  </div>
+</div>
+
+<button class="gps" id="gps">내 위치</button>
+<div class="toast" id="toast"></div>
+
+<div class="sheet" id="sheet"><div class="sh">
+  <div class="sh-h"><h2 id="sh-n"></h2><button id="sh-x">✕</button></div>
+  <div class="sh-b" id="sh-b"></div>
+</div></div>
+
+<script>
+var STOPS = [{"n":"28사단","a":"16001","i":"215000136","d":"상패동","y":37.910208,"x":127.013649,"ad":"경기도 동두천시 상패동 1004-16","c":"개방형","ty":"쉘터","bit":"","st":"","sy":"","fan":"","lt":false,"wb":false,"wf":"","sm":false,"ac":"","af":"","r":8,"dead":false},{"n":"28사단","a":"16002","i":"215000135","d":"상패동","y":37.910037,"x":127.01364,"ad":"경기도 동두천시 상패동 978-1","c":"개방형","ty":"쉘터","bit":"","st":"","sy":"","fan":"","lt":true,"wb":false,"wf":"","sm":false,"ac":"","af":"","r":221,"dead":false},{"n":"사천골","a":"16003","i":"215000134","d":"상패동","y":37.910155,"x":127.017709,"ad":"경기도 동두천시 상패동 880-26","c":"개방형","ty":"쉘터","bit":"","st":"","sy":"","fan":"","lt":false,"wb":false,"wf":"","sm":false,"ac":"","af":"","r":76,"dead":false},{"n":"장림윗마을","a":"16004","i":"215000372","d":"불현동","y":37.871932,"x":127.107445,"ad":"경기도 동두천시 탑동동 524","c":"표지판형","ty":"표지(구)","bit":"","st":"","sy":"","fan":"","lt":false,"wb":false,"wf":"","sm":false,"ac":"","af":"","r":4,"dead":false},{"n":"가마소","a":"16005","i":"215000133","d":"상패동","y":37.910085,"x":127.019751,"ad":"경기도 동두천시 상패동 873-4","c":"개방형","ty":"쉘터","bit":"","st":"","sy":"","fan":"","lt":false,"wb":false,"wf":"","sm":false,"ac":"","af":"","r":175,"dead":false},{"n":"가마소","a":"16006","i":"215000137","d":"상패동","y":37.910292,"x":127.019466,"ad":"경기도 동두천시 상패동 843-10","c":"표지판형","ty":"표지","bit":"","st":"","sy":"","fan":"","lt":false,"wb":false,"wf":"","sm":false,"ac":"","af":"","r":2,"dead":false},{"n":"광귀동","a":"16007","i":"215000132","d":"상패동","y":37.909859,"x":127.024231,"ad":"경기도 동두천시 상패동 620-24","c":"표지판형","ty":"표지","bit":"","st":"","sy":"","fan":"","lt":false,"wb":false,"wf":"","sm":false,"ac":"","af":"","r":2,"dead":false},{"n":"광귀동","a":"16008","i":"215000139","d":"상패동","y":37.910039,"x":127.024197,"ad":"경기도 동두천시 상패동 605-8","c":"표지판형","ty":"표지","bit":"","st":"","sy":"","fan":"","lt":false,"wb":false,"wf":"","sm":false,"ac":"","af":"","r":14,"dead":false},{"n":"인곡마을","a":"16009","i":"215000131","d":"상패동","y":37.909746,"x":127.026829,"ad":"경기도 동두천시 상패동 617","c":"개방형","ty":"쉘터","bit":"","st":"","sy":"","fan":"","lt":true,"wb":false,"wf":"","sm":false,"ac":"","af":"","r":1,"dead":false},{"n":"인곡마을","a":"16010","i":"215000140","d":"상패동","y":37.909872,"x":127.027712,"ad":"경기도 동두천시 상패동 618-2","c":"표지판형","ty":"표지","bit":"","st":"","sy":"","fan":"","lt":false,"wb":false,"wf":"","sm":false,"ac":"","af":"","r":2,"dead":false},{"n":"정감교","a":"16011","i":"215000130","d":"상패동","y":37.909299,"x":127.029928,"ad":"경기도 동두천시 상패동 422-7","c":"밀폐형","ty":"방풍형","bit":"2020","st":"","sy":"","fan":"","lt":true,"wb":false,"wf":"","sm":false,"ac":"","af":"","r":526,"dead":false},{"n":"새말입구","a":"16012","i":"215000141","d":"상패동","y":37.909499,"x":127.030074,"ad":"경기도 동두천시 상패동 422-12","c":"표지판형","ty":"무표지","bit":"","st":"","sy":"","fan":"","lt":false,"wb":false,"wf":"","sm":false,"ac":"","af":"","r":37,"dead":false},{"n":"무명교앞","a":"16013","i":"215000373","d":"불현동","y":37.877779,"x":127.105273,"ad":"경기도 동두천시 탑동동 599-3","c":"표지판형","ty":"표지(구)","bit":"","st":"","sy":"","fan":"","lt":false,"wb":false,"wf":"","sm":false,"ac":"","af":"","r":56,"dead":false},{"n":"마고개","a":"16014","i":"215000142","d":"상패동","y":37.908384,"x":127.034487,"ad":"경기도 동두천시 상패동 399-6","c":"표지판형","ty":"표지(구)","bit":"","st":"","sy":"","fan":"","lt":false,"wb":false,"wf":"","sm":false,"ac":"","af":"","r":11,"dead":false},{"n":"시민회관.상패동주민센터","a":"16015","i":"215000128","d":"상패동","y":37.905572,"x":127.044464,"ad":"경기도 동두천시 상패동 123-4","c":"개방형","ty":"쉘터","bit":"2023","st":"","sy":"","fan":"","lt":true,"wb":false,"wf":"","sm":false,"ac":"","af":"","r":176,"dead":false},{"n":"시민회관.상패동주민센터","a":"16016","i":"215000143","d":"상패동","y":37.905549,"x":127.044871,"ad":"경기도 동두천시 상패동 126-2","c":"개방형","ty":"쉘터","bit":"2023","st":"","sy":"","fan":"","lt":true,"wb":false,"wf":"","sm":false,"ac":"","af":"","r":76,"dead":false},{"n":"지행역앞.기업은행","a":"16017","i":"215000374","d":"송내동","y":37.891731,"x":127.054866,"ad":"경기도 동두천시 지행동 725-5","c":"표지판형","ty":"표지(구)","bit":"","st":"","sy":"","fan":"","lt":false,"wb":false,"wf":"","sm":false,"ac":"","af":"","r":128,"dead":false},{"n":"건영아파트","a":"16018","i":"215000382","d":"생연2동","y":37.897465,"x":127.045397,"ad":"경기도 동두천시 생연동 788-7","c":"표지판형","ty":"표지(신)","bit":"","st":"","sy":"","fan":"","lt":false,"wb":false,"wf":"","sm":false,"ac":"","af":"","r":4,"dead":false},{"n":"상패주공아파트","a":"16019","i":"215000063","d":"상패동","y":37.90472,"x":127.046053,"ad":"경기도 동두천시 상패동 69-37","c":"밀폐형","ty":"방풍형","bit":"2022","st":"","sy":"","fan":"2025","lt":true,"wb":false,"wf":"","sm":false,"ac":"","af":"","r":225,"dead":false},{"n":"상패주공아파트","a":"16020","i":"215000127","d":"상패동","y":37.904596,"x":127.045887,"ad":"경기도 동두천시 상패동 70-3","c":"개방형","ty":"협소보도형","bit":"2022","st":"","sy":"","fan":"2025","lt":true,"wb":false,"wf":"","sm":false,"ac":"","af":"","r":434,"dead":false},{"n":"왕방윗말","a":"16021","i":"215000078","d":"불현동","y":37.897286,"x":127.136027,"ad":"경기도 동두천시 탑동동 127-8","c":"표지판형","ty":"표지(신)","bit":"","st":"","sy":"","fan":"","lt":false,"wb":false,"wf":"","sm":false,"ac":"","af":"","r":0,"dead":false},{"n":"왕방윗말","a":"16022","i":"215000077","d":"불현동","y":37.897326,"x":127.135971,"ad":"경기도 동두천시 탑동동 126-8","c":"표지판형","ty":"표지(신)","bit":"","st":"","sy":"","fan":"","lt":false,"wb":false,"wf":"","sm":false,"ac":"","af":"","r":7,"dead":false},{"n":"탑동교차로앞","a":"16023","i":"215000079","d":"불현동","y":37.89074,"x":127.095438,"ad":"경기도 동두천시 탑동동 820-1","c":"개방형","ty":"쉘터","bit":"","st":"","sy":"","fan":"","lt":false,"wb":false,"wf":"","sm":false,"ac":"","af":"","r":93,"dead":false},{"n":"탑동교차로앞","a":"16024","i":"215000080","d":"불현동","y":37.890556,"x":127.095424,"ad":"경기도 동두천시 탑동동 818-3","c":"개방형","ty":"쉘터","bit":"","st":"","sy":"","fan":"","lt":false,"wb":false,"wf":"","sm":false,"ac":"","af":"","r":12,"dead":false},{"n":"신천교","a":"16025","i":"215000126","d":"생연2동","y":37.902932,"x":127.050472,"ad":"경기도 동두천시 생연동 819-16","c":"표지판형","ty":"표지미상","bit":"","st":"","sy":"","fan":"","lt":false,"wb":false,"wf":"","sm":false,"ac":"","af":"","r":10,"dead":false},{"n":"신천교","a":"16026","i":"215000064","d":"생연2동","y":37.903043,"x":127.050585,"ad":"경기도 동두천시 생연동 819-16","c":"개방형","ty":"쉘터","bit":"","st":"","sy":"","fan":"","lt":false,"wb":false,"wf":"","sm":false,"ac":"","af":"","r":58,"dead":false},{"n":"세아아파트","a":"16027","i":"215000081","d":"생연2동","y":37.900431,"x":127.050055,"ad":"경기도 동두천시 생연동 809","c":"개방형","ty":"쉘터","bit":"","st":"","sy":"","fan":"","lt":false,"wb":false,"wf":"","sm":false,"ac":"","af":"","r":670,"dead":false},{"n":"송내주공3.4단지","a":"16028","i":"215000018","d":"송내동","y":37.887183,"x":127.051507,"ad":"경기도 동두천시 송내동 698-1","c":"밀폐형","ty":"밀폐형","bit":"2020","st":"냉온열의자","sy":"2025","fan":"","lt":true,"wb":true,"wf":"","sm":true,"ac":"2026","af":"벽걸이","r":2031,"dead":false},{"n":"송내주공3.4단지","a":"16029","i":"215000009","d":"송내동","y":37.88733,"x":127.051739,"ad":"경기도 동두천시 송내동 698-1","c":"밀폐형","ty":"밀폐형","bit":"2020","st":"냉온열의자","sy":"2025","fan":"","lt":true,"wb":true,"wf":"","sm":true,"ac":"2026","af":"벽걸이","r":3919,"dead":false},{"n":"동두천중앙역3번출구","a":"16030","i":"215000082","d":"불현동","y":37.902104,"x":127.056716,"ad":"경기도 동두천시 생연동 444-31","c":"밀폐형","ty":"쉘터","bit":"2024","st":"냉온열의자","sy":"2025","fan":"2024","lt":false,"wb":false,"wf":"","sm":true,"ac":"2024","af":"벽걸이","r":3338,"dead":false},{"n":"송내주공1.2단지","a":"16031","i":"215000008","d":"송내동","y":37.890408,"x":127.052011,"ad":"경기도 동두천시 지행동 725-2","c":"밀폐형","ty":"밀폐형","bit":"2020","st":"냉온열의자","sy":"2025","fan":"2025","lt":true,"wb":false,"wf":"","sm":true,"ac":"2026","af":"벽걸이","r":4549,"dead":false},{"n":"송내주공1.2단지","a":"16032","i":"215000019","d":"송내동","y":37.890633,"x":127.051805,"ad":"경기도 동두천시 지행동 725-2","c":"밀폐형","ty":"밀폐형","bit":"2020","st":"냉온열의자","sy":"2025","fan":"2025","lt":true,"wb":true,"wf":"","sm":true,"ac":"2026","af":"벽걸이","r":3110,"dead":false},{"n":"휴먼빌.지행초교","a":"16033","i":"215000380","d":"불현동","y":37.893378,"x":127.060796,"ad":"경기도 동두천시 지행동 329-5","c":"표지판형","ty":"표지(구)","bit":"","st":"","sy":"","fan":"","lt":false,"wb":false,"wf":"","sm":false,"ac":"","af":"","r":645,"dead":false},{"n":"보건소","a":"16034","i":"215000021","d":"생연2동","y":37.896985,"x":127.052287,"ad":"경기도 동두천시 생연동 714-14","c":"밀폐형","ty":"쉘터","bit":"2020","st":"냉온열의자","sy":"2021","fan":"2024","lt":true,"wb":false,"wf":"","sm":true,"ac":"2023","af":"천장형","r":1898,"dead":false},{"n":"역전사거리","a":"16035","i":"215000125","d":"생연2동","y":37.902562,"x":127.052325,"ad":"경기도 동두천시 생연동 690-1","c":"표지판형","ty":"표지미상","bit":"","st":"","sy":"","fan":"","lt":false,"wb":false,"wf":"","sm":false,"ac":"","af":"","r":18,"dead":false},{"n":"현진아파트","a":"16036","i":"215000007","d":"송내동","y":37.89305,"x":127.052397,"ad":"경기도 동두천시 지행동 693-1","c":"밀폐형","ty":"쉘터","bit":"2020","st":"온열의자","sy":"2023","fan":"2024","lt":true,"wb":false,"wf":"2022","sm":true,"ac":"2023","af":"천장형","r":20237,"dead":false},{"n":"역전사거리","a":"16037","i":"215000065","d":"생연2동","y":37.902674,"x":127.052437,"ad":"경기도 동두천시 생연동 691-57","c":"개방형","ty":"쉘터","bit":"2020","st":"","sy":"","fan":"","lt":false,"wb":false,"wf":"","sm":false,"ac":"","af":"","r":838,"dead":false},{"n":"현진아파트","a":"16038","i":"215000020","d":"송내동","y":37.89285,"x":127.052068,"ad":"경기도 동두천시 지행동 712","c":"밀폐형","ty":"쉘터","bit":"2021","st":"냉온열의자","sy":"2021","fan":"2024","lt":false,"wb":false,"wf":"2022","sm":true,"ac":"2024","af":"벽걸이","r":7030,"dead":false},{"n":"보건소","a":"16039","i":"215000006","d":"생연2동","y":37.897075,"x":127.052571,"ad":"경기도 동두천시 생연동 714-14","c":"밀폐형","ty":"쉘터","bit":"2020","st":"냉온열의자","sy":"2021","fan":"2024","lt":true,"wb":true,"wf":"2019","sm":true,"ac":"2024","af":"벽걸이","r":3767,"dead":false},{"n":"국민건강보험공단.농협","a":"16040","i":"215000022","d":"생연2동","y":37.899517,"x":127.052486,"ad":"경기도 동두천시 생연동 696-8","c":"개방형","ty":"쉘터","bit":"2020","st":"냉온열의자","sy":"2025","fan":"2024","lt":true,"wb":false,"wf":"","sm":false,"ac":"","af":"","r":4352,"dead":false},{"n":"국민건강보험공단.농협","a":"16041","i":"215000005","d":"생연2동","y":37.899998,"x":127.052735,"ad":"경기도 동두천시 생연동 695-22","c":"개방형","ty":"쉘터","bit":"2019","st":"냉온열의자","sy":"2025","fan":"2024","lt":true,"wb":false,"wf":"","sm":false,"ac":"","af":"","r":5411,"dead":false},{"n":"큰시장","a":"16042","i":"215000023","d":"생연2동","y":37.901225,"x":127.052771,"ad":"경기도 동두천시 생연동 689-1","c":"개방형","ty":"쉘터","bit":"2019","st":"냉온열의자","sy":"2025","fan":"","lt":true,"wb":false,"wf":"","sm":false,"ac":"","af":"","r":4121,"dead":false},{"n":"상봉상회","a":"16043","i":"215000096","d":"소요동","y":37.949896,"x":127.053016,"ad":"경기도 동두천시 상봉암동 267-6","c":"표지판형","ty":"표지(구)","bit":"","st":"","sy":"","fan":"","lt":false,"wb":false,"wf":"","sm":false,"ac":"","af":"","r":2,"dead":false},{"n":"큰시장","a":"16044","i":"215000004","d":"생연2동","y":37.901656,"x":127.053095,"ad":"경기도 동두천시 생연동 689-24","c":"개방형","ty":"쉘터","bit":"2019","st":"냉온열의자","sy":"2025","fan":"2024","lt":true,"wb":false,"wf":"","sm":false,"ac":"","af":"","r":3890,"dead":false},{"n":"상봉상회","a":"16045","i":"215000148","d":"소요동","y":37.949928,"x":127.052926,"ad":"경기도 동두천시 상봉암동 233-52","c":"개방형","ty":"쉘터","bit":"","st":"","sy":"","fan":"","lt":false,"wb":false,"wf":"","sm":false,"ac":"","af":"","r":319,"dead":false},{"n":"소요초등학교","a":"16046","i":"215000147","d":"소요동","y":37.947441,"x":127.054359,"ad":"경기도 동두천시 상봉암동 233-52","c":"개방형","ty":"쉘터","bit":"","st":"","sy":"","fan":"","lt":false,"wb":false,"wf":"","sm":false,"ac":"","af":"","r":497,"dead":false},{"n":"생골사거리.고용복지플러스센터","a":"16047","i":"215000083","d":"불현동","y":37.898995,"x":127.058566,"ad":"경기도 동두천시 생연동 373-1","c":"표지판형","ty":"표지(구)","bit":"","st":"","sy":"","fan":"","lt":false,"wb":false,"wf":"","sm":false,"ac":"","af":"","r":27,"dead":false},{"n":"한빛누리중고등학교","a":"16048","i":"215000379","d":"생연1동","y":37.911151,"x":127.060209,"ad":"경기도 동두천시 생연동 512-61","c":"개방형","ty":"협소보도형","bit":"2025","st":"냉온열의자","sy":"2025","fan":"","lt":false,"wb":false,"wf":"","sm":false,"ac":"","af":"","r":68,"dead":false},{"n":"유채네빌라","a":"16049","i":"215000149","d":"소요동","y":37.951448,"x":127.053867,"ad":"경기도 동두천시 상봉암동 302-1","c":"표지판형","ty":"표지(신)","bit":"","st":"","sy":"","fan":"","lt":false,"wb":false,"wf":"","sm":false,"ac":"","af":"","r":84,"dead":false},{"n":"유채네빌라","a":"16050","i":"215000095","d":"소요동","y":37.951418,"x":127.053939,"ad":"경기도 동두천시 상봉암동 297-5","c":"표지판형","ty":"표지(신)","bit":"","st":"","sy":"","fan":"","lt":false,"wb":false,"wf":"","sm":false,"ac":"","af":"","r":1,"dead":false},{"n":"해성산부인과","a":"16051","i":"215000363","d":"중앙동","y":37.904246,"x":127.054224,"ad":"경기도 동두천시 생연동 645-43","c":"개방형","ty":"협소보도형","bit":"2025","st":"","sy":"","fan":"","lt":false,"wb":false,"wf":"","sm":false,"ac":"","af":"","r":808,"dead":false},{"n":"동두천터미널.송내광장","a":"16052","i":"215000016","d":"송내동","y":37.882106,"x":127.054093,"ad":"경기도 동두천시 송내동 698-21","c":"개방형","ty":"쉘터","bit":"2020","st":"","sy":"","fan":"2025","lt":true,"wb":false,"wf":"","sm":false,"ac":"","af":"","r":1009,"dead":false},{"n":"안창말","a":"16053","i":"215000084","d":"소요동","y":37.931892,"x":127.060422,"ad":"경기도 동두천시 동두천동 132-4","c":"표지판형","ty":"표지(구)","bit":"","st":"","sy":"","fan":"","lt":false,"wb":false,"wf":"","sm":false,"ac":"","af":"","r":66,"dead":false},{"n":"동두천터미널.송내광장","a":"16054","i":"215000011","d":"송내동","y":37.882047,"x":127.054403,"ad":"경기도 동두천시 송내동 697-1","c":"개방형","ty":"쉘터","bit":"2020","st":"","sy":"","fan":"2025","lt":true,"wb":false,"wf":"","sm":false,"ac":"","af":"","r":1173,"dead":false},{"n":"송내주공5단지","a":"16055","i":"215000017","d":"송내동","y":37.884263,"x":127.054358,"ad":"경기도 동두천시 송내동 698-2","c":"개방형","ty":"쉘터","bit":"2020","st":"냉온열의자","sy":"2026","fan":"","lt":true,"wb":false,"wf":"","sm":false,"ac":"","af":"","r":1,"dead":false},{"n":"송내주공5단지","a":"16056","i":"215000010","d":"송내동","y":37.884073,"x":127.054495,"ad":"경기도 동두천시 송내동 697","c":"개방형","ty":"쉘터","bit":"2020","st":"냉온열의자","sy":"2026","fan":"","lt":true,"wb":false,"wf":"","sm":false,"ac":"","af":"","r":363,"dead":false},{"n":"세코닉스앞","a":"16057","i":"215000359","d":"소요동","y":37.942508,"x":127.058272,"ad":"경기도 동두천시 상봉암동 146","c":"개방형","ty":"쉘터","bit":"2020","st":"","sy":"","fan":"2024","lt":false,"wb":true,"wf":"2023","sm":false,"ac":"","af":"","r":623,"dead":false},{"n":"서울병원.중앙시장입구","a":"16058","i":"215000025","d":"중앙동","y":37.907703,"x":127.054477,"ad":"경기도 동두천시 생연동 612-6","c":"개방형","ty":"쉘터","bit":"2021","st":"","sy":"","fan":"","lt":false,"wb":false,"wf":"","sm":false,"ac":"","af":"","r":3192,"dead":false},{"n":"동두천중앙역","a":"16059","i":"215000046","d":"중앙동","y":37.900512,"x":127.056451,"ad":"경기도 동두천시 생연동 724-2","c":"표지판형","ty":"표지(구)","bit":"2021","st":"","sy":"","fan":"","lt":true,"wb":false,"wf":"","sm":false,"ac":"","af":"","r":298,"dead":false},{"n":"송내주공4단지","a":"16060","i":"215000146","d":"송내동","y":37.886578,"x":127.054699,"ad":"경기도 동두천시 송내동 697","c":"개방형","ty":"쉘터","bit":"2020","st":"냉온열의자","sy":"2026","fan":"","lt":true,"wb":false,"wf":"","sm":false,"ac":"","af":"","r":306,"dead":false},{"n":"동두천중앙역","a":"16061","i":"215000087","d":"중앙동","y":37.900635,"x":127.05631,"ad":"경기도 동두천시 생연동 726-3","c":"표지판형","ty":"표지(구)","bit":"2021","st":"","sy":"","fan":"","lt":false,"wb":false,"wf":"","sm":false,"ac":"","af":"","r":30,"dead":false},{"n":"지행역부영9단지","a":"16062","i":"215000201","d":"송내동","y":37.893146,"x":127.055242,"ad":"경기도 동두천시 지행동 696","c":"개방형","ty":"쉘터(구)","bit":"2022","st":"","sy":"","fan":"","lt":true,"wb":true,"wf":"","sm":false,"ac":"","af":"","r":974,"dead":false},{"n":"수정타운","a":"16063","i":"215000085","d":"소요동","y":37.934483,"x":127.05983,"ad":"경기도 동두천시 동두천동 80-5","c":"표지판형","ty":"표지(구)","bit":"","st":"","sy":"","fan":"","lt":false,"wb":false,"wf":"","sm":false,"ac":"","af":"","r":40,"dead":false},{"n":"원각사","a":"16064","i":"215000145","d":"소요동","y":37.938344,"x":127.055298,"ad":"경기도 동두천시 동두천동 386-9","c":"개방형","ty":"쉘터","bit":"2020","st":"","sy":"","fan":"","lt":true,"wb":false,"wf":"","sm":false,"ac":"","af":"","r":288,"dead":false},{"n":"문화극장","a":"16065","i":"215000026","d":"중앙동","y":37.908697,"x":127.055562,"ad":"경기도 동두천시 생연동 615-2","c":"표지판형","ty":"표지(구)","bit":"2021","st":"","sy":"","fan":"","lt":false,"wb":false,"wf":"","sm":false,"ac":"","af":"","r":1312,"dead":false},{"n":"창말(동양대학교)","a":"16066","i":"215000144","d":"소요동","y":37.935087,"x":127.055523,"ad":"경기도 동두천시 동두천동 351-13","c":"개방형","ty":"개방형","bit":"2020","st":"냉온열의자","sy":"2021","fan":"","lt":true,"wb":false,"wf":"2023","sm":false,"ac":"","af":"","r":6676,"dead":false},{"n":"부영5단지","a":"16067","i":"215000205","d":"송내동","y":37.897054,"x":127.055524,"ad":"경기도 동두천시 생연동 716","c":"개방형","ty":"쉘터","bit":"","st":"","sy":"","fan":"","lt":true,"wb":false,"wf":"","sm":false,"ac":"","af":"","r":142,"dead":false},{"n":"문화극장","a":"16068","i":"215000001","d":"중앙동","y":37.908597,"x":127.055769,"ad":"경기도 동두천시 생연동 617-2","c":"개방형","ty":"쉘터","bit":"2021","st":"","sy":"","fan":"","lt":false,"wb":false,"wf":"","sm":false,"ac":"","af":"","r":1645,"dead":false},{"n":"창말(동양대학교)","a":"16069","i":"215000051","d":"소요동","y":37.935103,"x":127.055751,"ad":"경기도 동두천시 동두천동 359","c":"개방형","ty":"개방형","bit":"2012","st":"냉온열의자","sy":"2021","fan":"","lt":true,"wb":false,"wf":"2023","sm":false,"ac":"","af":"","r":673,"dead":false},{"n":"송내사거리","a":"16070","i":"215000040","d":"송내동","y":37.881505,"x":127.056016,"ad":"경기도 동두천시 송내동 571-6","c":"개방형","ty":"쉘터","bit":"2019","st":"","sy":"","fan":"","lt":true,"wb":false,"wf":"","sm":false,"ac":"","af":"","r":4,"dead":false},{"n":"원각사","a":"16071","i":"215000050","d":"소요동","y":37.939185,"x":127.056103,"ad":"경기도 동두천시 동두천동 378-2","c":"개방형","ty":"쉘터","bit":"2020","st":"","sy":"","fan":"","lt":false,"wb":false,"wf":"","sm":false,"ac":"","af":"","r":42,"dead":false},{"n":"송내사거리","a":"16072","i":"215000039","d":"송내동","y":37.882358,"x":127.056327,"ad":"경기도 동두천시 송내동 586-4","c":"개방형","ty":"협소보도형","bit":"2019","st":"","sy":"","fan":"","lt":true,"wb":false,"wf":"","sm":false,"ac":"","af":"","r":26,"dead":false},{"n":"송내상회","a":"16073","i":"215000015","d":"송내동","y":37.878677,"x":127.056284,"ad":"경기도 동두천시 송내동 493-3","c":"개방형","ty":"쉘터","bit":"2020","st":"","sy":"","fan":"","lt":true,"wb":false,"wf":"","sm":false,"ac":"","af":"","r":318,"dead":false},{"n":"송내상회","a":"16074","i":"215000012","d":"송내동","y":37.879125,"x":127.056359,"ad":"경기도 동두천시 송내동 492-3","c":"개방형","ty":"쉘터","bit":"2012","st":"","sy":"","fan":"","lt":true,"wb":false,"wf":"","sm":false,"ac":"","af":"","r":194,"dead":false},{"n":"안창말입구","a":"16075","i":"215000034","d":"소요동","y":37.931137,"x":127.056393,"ad":"경기도 동두천시 동두천동 299-1","c":"개방형","ty":"쉘터","bit":"2020","st":"냉온열의자","sy":"2026","fan":"","lt":false,"wb":false,"wf":"","sm":false,"ac":"","af":"","r":2168,"dead":false},{"n":"담바위농원.약수터","a":"16076","i":"215000150","d":"소요동","y":37.955793,"x":127.0564,"ad":"경기도 동두천시 하봉암동 364-3","c":"표지판형","ty":"표지(신)","bit":"","st":"","sy":"","fan":"","lt":false,"wb":false,"wf":"","sm":false,"ac":"","af":"","r":34,"dead":false},{"n":"담바위농원.약수터","a":"16077","i":"215000094","d":"소요동","y":37.955765,"x":127.056476,"ad":"경기도 동두천시 하봉암동 366","c":"표지판형","ty":"표지(신)","bit":"","st":"","sy":"","fan":"","lt":false,"wb":false,"wf":"","sm":false,"ac":"","af":"","r":2,"dead":false},{"n":"미2사단후문","a":"16078","i":"215000032","d":"소요동","y":37.924903,"x":127.056525,"ad":"경기도 동두천시 동두천동 203-10","c":"개방형","ty":"쉘터","bit":"2020","st":"","sy":"","fan":"","lt":true,"wb":false,"wf":"","sm":false,"ac":"","af":"","r":1306,"dead":false},{"n":"지행동","a":"16079","i":"215000041","d":"송내동","y":37.886956,"x":127.05652,"ad":"경기도 동두천시 지행동 408-2","c":"개방형","ty":"쉘터(구)","bit":"2020","st":"","sy":"","fan":"","lt":false,"wb":false,"wf":"","sm":false,"ac":"","af":"","r":56,"dead":false},{"n":"북보산동","a":"16080","i":"215000031","d":"보산동","y":37.921084,"x":127.056513,"ad":"경기도 동두천시 보산동 448-6","c":"개방형","ty":"쉘터","bit":"2012","st":"","sy":"","fan":"","lt":true,"wb":false,"wf":"","sm":false,"ac":"","af":"","r":376,"dead":false},{"n":"안창말입구","a":"16081","i":"215000052","d":"소요동","y":37.93162,"x":127.056568,"ad":"경기도 동두천시 동두천동 277-4","c":"밀폐형","ty":"방풍형","bit":"2012","st":"냉온열의자","sy":"2026","fan":"","lt":true,"wb":false,"wf":"","sm":false,"ac":"","af":"","r":573,"dead":false},{"n":"동두천역","a":"16082","i":"215000033","d":"소요동","y":37.927742,"x":127.056008,"ad":"경기도 동두천시 동두천동 245-228","c":"밀폐형","ty":"쉘터","bit":"2018","st":"냉온열의자","sy":"2024","fan":"2024","lt":true,"wb":false,"wf":"2023","sm":true,"ac":"2024","af":"벽걸이","r":3300,"dead":false},{"n":"지행동","a":"16083","i":"215000038","d":"송내동","y":37.886921,"x":127.056771,"ad":"경기도 동두천시 지행동 407-3","c":"개방형","ty":"쉘터","bit":"2020","st":"","sy":"","fan":"","lt":true,"wb":false,"wf":"","sm":false,"ac":"","af":"","r":113,"dead":false},{"n":"북보산동","a":"16084","i":"215000055","d":"보산동","y":37.921669,"x":127.056797,"ad":"경기도 동두천시 보산동 455-1","c":"개방형","ty":"쉘터","bit":"2020","st":"","sy":"","fan":"","lt":false,"wb":false,"wf":"","sm":false,"ac":"","af":"","r":149,"dead":false},{"n":"미2사단후문","a":"16085","i":"215000054","d":"소요동","y":37.924955,"x":127.056772,"ad":"경기도 동두천시 동두천동 195-7","c":"개방형","ty":"쉘터","bit":"2016","st":"","sy":"","fan":"","lt":true,"wb":false,"wf":"","sm":false,"ac":"","af":"","r":135,"dead":false},{"n":"지행역3번출구","a":"16086","i":"215000070","d":"송내동","y":37.892648,"x":127.056305,"ad":"경기도 동두천시 지행동 733-4","c":"밀폐형","ty":"쉘터","bit":"2022","st":"냉온열의자","sy":"2022","fan":"2024","lt":false,"wb":false,"wf":"","sm":true,"ac":"2022","af":"천장형","r":4747,"dead":false},{"n":"동두천역","a":"16087","i":"215000053","d":"소요동","y":37.928019,"x":127.056151,"ad":"경기도 동두천시 동두천동 255","c":"밀폐형","ty":"쉘터","bit":"2018","st":"냉온열의자","sy":"2024","fan":"2024","lt":true,"wb":false,"wf":"2023","sm":true,"ac":"2024","af":"벽걸이","r":12151,"dead":false},{"n":"미2사단정문","a":"16088","i":"215000030","d":"보산동","y":37.917442,"x":127.056877,"ad":"경기도 동두천시 보산동 441-3","c":"개방형","ty":"쉘터","bit":"2020","st":"","sy":"","fan":"2024","lt":true,"wb":false,"wf":"","sm":false,"ac":"","af":"","r":1035,"dead":false},{"n":"중앙고등학교.지행역","a":"16089","i":"215000042","d":"송내동","y":37.892072,"x":127.056929,"ad":"경기도 동두천시 지행동 481-15","c":"밀폐형","ty":"쉘터","bit":"2020","st":"냉온열의자","sy":"2022","fan":"2024","lt":true,"wb":false,"wf":"2022","sm":true,"ac":"2024","af":"벽걸이","r":3346,"dead":false},{"n":"중앙고등학교.지행역","a":"16090","i":"215000037","d":"불현동","y":37.891693,"x":127.057168,"ad":"경기도 동두천시 지행동 340-9","c":"개방형","ty":"쉘터","bit":"2020","st":"냉온열의자","sy":"2022","fan":"2024","lt":true,"wb":false,"wf":"2022","sm":false,"ac":"","af":"","r":722,"dead":false},{"n":"미2사단정문","a":"16091","i":"215000056","d":"보산동","y":37.917468,"x":127.057109,"ad":"경기도 동두천시 보산동 441-3","c":"개방형","ty":"쉘터","bit":"2020","st":"","sy":"","fan":"2024","lt":true,"wb":false,"wf":"","sm":false,"ac":"","af":"","r":509,"dead":false},{"n":"대한통운.광산입구","a":"16092","i":"215000089","d":"소요동","y":37.962062,"x":127.057268,"ad":"경기도 동두천시 하봉암동 393-2","c":"표지판형","ty":"표지(신)","bit":"","st":"","sy":"","fan":"","lt":false,"wb":false,"wf":"","sm":false,"ac":"","af":"","r":11,"dead":false},{"n":"대한통운.광산입구","a":"16093","i":"215000093","d":"소요동","y":37.961993,"x":127.057308,"ad":"경기도 동두천시 하봉암동 393-3","c":"표지판형","ty":"표지(신)","bit":"","st":"","sy":"","fan":"","lt":false,"wb":false,"wf":"","sm":false,"ac":"","af":"","r":0,"dead":false},{"n":"보산역.보산초등학교입구","a":"16094","i":"215000029","d":"보산동","y":37.914991,"x":127.057312,"ad":"경기도 동두천시 보산동 414-5","c":"밀폐형","ty":"쉘터","bit":"2020","st":"냉온열의자","sy":"2021","fan":"2024","lt":true,"wb":false,"wf":"2022","sm":true,"ac":"2023","af":"천장형","r":4815,"dead":false},{"n":"지방산업단지","a":"16095","i":"215000060","d":"소요동","y":37.941191,"x":127.057254,"ad":"경기도 동두천시 동두천동 382-1","c":"밀폐형","ty":"방풍형","bit":"2021","st":"","sy":"","fan":"","lt":false,"wb":false,"wf":"2023","sm":false,"ac":"","af":"","r":50,"dead":false},{"n":"보산역.보산초등학교입구","a":"16096","i":"215000057","d":"보산동","y":37.915149,"x":127.057498,"ad":"경기도 동두천시 보산동 365-4","c":"개방형","ty":"쉘터","bit":"2020","st":"냉온열의자","sy":"2026","fan":"2024","lt":true,"wb":false,"wf":"2022","sm":false,"ac":"","af":"","r":2484,"dead":false},{"n":"현대.지행주공아파트","a":"16097","i":"215000043","d":"불현동","y":37.89469,"x":127.057456,"ad":"경기도 동두천시 지행동 733-3","c":"개방형","ty":"쉘터","bit":"2020","st":"","sy":"","fan":"","lt":true,"wb":false,"wf":"2022","sm":false,"ac":"","af":"","r":44,"dead":false},{"n":"현대.지행주공아파트","a":"16098","i":"215000036","d":"불현동","y":37.89418,"x":127.057638,"ad":"경기도 동두천시 지행동 283-1","c":"밀폐형","ty":"쉘터","bit":"2020","st":"냉온열의자","sy":"2025","fan":"","lt":true,"wb":false,"wf":"2022","sm":true,"ac":"2025","af":"천장형","r":441,"dead":false},{"n":"환경사업소","a":"16099","i":"215000219","d":"소요동","y":37.946645,"x":127.057355,"ad":"경기도 동두천시 상봉암동 226-3","c":"개방형","ty":"쉘터(구)","bit":"","st":"","sy":"","fan":"","lt":false,"wb":false,"wf":"","sm":false,"ac":"","af":"","r":3,"dead":false},{"n":"(구)동연파출소","a":"16100","i":"215000027","d":"중앙동","y":37.909008,"x":127.057616,"ad":"경기도 동두천시 생연동 551-50","c":"개방형","ty":"쉘터","bit":"2020","st":"","sy":"","fan":"","lt":false,"wb":false,"wf":"","sm":false,"ac":"","af":"","r":3500,"dead":false},{"n":"(구)동연파출소","a":"16101","i":"215000059","d":"중앙동","y":37.908911,"x":127.057855,"ad":"경기도 동두천시 생연동 489-7","c":"개방형","ty":"쉘터","bit":"2020","st":"","sy":"","fan":"","lt":false,"wb":false,"wf":"","sm":false,"ac":"","af":"","r":1165,"dead":false},{"n":"대원빌라","a":"16102","i":"215000035","d":"불현동","y":37.895666,"x":127.057902,"ad":"경기도 동두천시 지행동 270-8","c":"개방형","ty":"쉘터","bit":"2020","st":"","sy":"","fan":"","lt":true,"wb":false,"wf":"","sm":false,"ac":"","af":"","r":116,"dead":false},{"n":"대원빌라","a":"16103","i":"215000044","d":"불현동","y":37.895944,"x":127.057682,"ad":"경기도 동두천시 지행동 536-2","c":"개방형","ty":"쉘터","bit":"2020","st":"","sy":"","fan":"","lt":true,"wb":false,"wf":"","sm":false,"ac":"","af":"","r":78,"dead":false},{"n":"삼성그린빌라","a":"16104","i":"215000086","d":"소요동","y":37.932817,"x":127.058464,"ad":"경기도 동두천시 동두천동 118-1","c":"표지판형","ty":"표지(구)","bit":"","st":"","sy":"","fan":"","lt":false,"wb":false,"wf":"","sm":false,"ac":"","af":"","r":75,"dead":false},{"n":"생골사거리고용복지플러스센터","a":"16105","i":"215000045","d":"불현동","y":37.899351,"x":127.057814,"ad":"경기도 동두천시 생연동 371-3","c":"개방형","ty":"쉘터","bit":"2021","st":"냉온열의자","sy":"2026","fan":"2024","lt":true,"wb":true,"wf":"","sm":false,"ac":"","af":"","r":59,"dead":false},{"n":"보영여중고.은성교회","a":"16106","i":"215000028","d":"생연1동","y":37.911992,"x":127.057801,"ad":"경기도 동두천시 생연동 548-6","c":"개방형","ty":"쉘터","bit":"2020","st":"냉온열의자","sy":"2021","fan":"2025","lt":true,"wb":false,"wf":"","sm":false,"ac":"","af":"","r":3633,"dead":false},{"n":"보영여중고.은성교회","a":"16107","i":"215000058","d":"생연1동","y":37.911712,"x":127.058101,"ad":"경기도 동두천시 생연동 503-9","c":"개방형","ty":"쉘터","bit":"2012","st":"","sy":"","fan":"2025","lt":true,"wb":false,"wf":"","sm":false,"ac":"","af":"","r":703,"dead":false},{"n":"지방산업단지","a":"16108","i":"215000049","d":"소요동","y":37.941755,"x":127.057975,"ad":"경기도 동두천시 상봉암동 146","c":"밀폐형","ty":"방풍형","bit":"2020","st":"","sy":"","fan":"","lt":false,"wb":false,"wf":"2023","sm":false,"ac":"","af":"","r":22,"dead":false},{"n":"생골사거리고용복지플러스센터","a":"16109","i":"215000088","d":"불현동","y":37.899517,"x":127.058038,"ad":"경기도 동두천시 생연동 361-27","c":"개방형","ty":"쉘터","bit":"2021","st":"냉온열의자","sy":"2026","fan":"2025","lt":true,"wb":true,"wf":"","sm":false,"ac":"","af":"","r":152,"dead":false},{"n":"니지모리스튜디오","a":"16110","i":"215000161","d":"불현동","y":37.881126,"x":127.094909,"ad":"경기도 동두천시 탑동동 산 112-1","c":"표지판형","ty":"표지(구)","bit":"","st":"","sy":"","fan":"","lt":false,"wb":false,"wf":"","sm":false,"ac":"","af":"","r":0,"dead":false},{"n":"생연주공아파트","a":"16111","i":"215000162","d":"생연1동","y":37.912216,"x":127.065569,"ad":"경기도 동두천시 생연동 180-4","c":"표지판형","ty":"표지미상","bit":"","st":"","sy":"","fan":"","lt":false,"wb":false,"wf":"","sm":false,"ac":"","af":"","r":200,"dead":false},{"n":"환경사업소","a":"16112","i":"215000215","d":"소요동","y":37.946626,"x":127.056375,"ad":"경기도 동두천시 상봉암동 233-18","c":"표지판형","ty":"표지미상","bit":"","st":"","sy":"","fan":"","lt":false,"wb":false,"wf":"","sm":false,"ac":"","af":"","r":45,"dead":false},{"n":"송내삼거리","a":"16113","i":"215000014","d":"불현동","y":37.874178,"x":127.058461,"ad":"경기도 동두천시 송내동 467-4","c":"표지판형","ty":"표지","bit":"","st":"","sy":"","fan":"","lt":false,"wb":false,"wf":"","sm":false,"ac":"","af":"","r":42,"dead":false},{"n":"송내삼거리","a":"16114","i":"215000013","d":"송내동","y":37.874497,"x":127.058532,"ad":"경기도 동두천시 송내동 442-3","c":"개방형","ty":"쉘터","bit":"2020","st":"","sy":"","fan":"","lt":false,"wb":false,"wf":"","sm":false,"ac":"","af":"","r":45,"dead":false},{"n":"고향상회","a":"16115","i":"215000090","d":"소요동","y":37.962754,"x":127.058756,"ad":"경기도 동두천시 하봉암동 270-4","c":"표지판형","ty":"표지(구)","bit":"","st":"","sy":"","fan":"","lt":false,"wb":false,"wf":"","sm":false,"ac":"","af":"","r":98,"dead":false},{"n":"생연주공아파트","a":"16116","i":"215000163","d":"생연1동","y":37.912139,"x":127.065377,"ad":"경기도 동두천시 생연동 192-6","c":"개방형","ty":"쉘터","bit":"","st":"","sy":"","fan":"","lt":false,"wb":false,"wf":"","sm":false,"ac":"","af":"","r":219,"dead":false},{"n":"고향상회","a":"16117","i":"215000092","d":"소요동","y":37.962786,"x":127.058817,"ad":"경기도 동두천시 하봉암동 270-6","c":"표지판형","ty":"표지(신)","bit":"","st":"","sy":"","fan":"","lt":false,"wb":false,"wf":"","sm":false,"ac":"","af":"","r":3,"dead":false},{"n":"안말회관","a":"16118","i":"215000091","d":"소요동","y":37.966236,"x":127.058877,"ad":"경기도 동두천시 하봉암동 196-7","c":"표지판형","ty":"표지미상","bit":"","st":"","sy":"","fan":"","lt":false,"wb":false,"wf":"","sm":false,"ac":"","af":"","r":64,"dead":false},{"n":"생연초등학교","a":"16119","i":"215000124","d":"불현동","y":37.900209,"x":127.058999,"ad":"경기도 동두천시 생연동 413-4","c":"개방형","ty":"쉘터","bit":"2022","st":"","sy":"","fan":"","lt":false,"wb":false,"wf":"","sm":false,"ac":"","af":"","r":107,"dead":false},{"n":"중앙파출소","a":"16120","i":"215000164","d":"보산동","y":37.9131,"x":127.060993,"ad":"경기도 동두천시 보산동 407-39","c":"개방형","ty":"쉘터","bit":"2026","st":"","sy":"","fan":"","lt":false,"wb":false,"wf":"","sm":false,"ac":"","af":"","r":99,"dead":false},{"n":"중앙파출소","a":"16121","i":"215000165","d":"보산동","y":37.913214,"x":127.060906,"ad":"경기도 동두천시 보산동 405","c":"개방형","ty":"쉘터","bit":"","st":"","sy":"","fan":"","lt":false,"wb":false,"wf":"","sm":false,"ac":"","af":"","r":262,"dead":false},{"n":"자연휴양림","a":"16122","i":"215000166","d":"불현동","y":37.889344,"x":127.136506,"ad":"경기도 동두천시 탑동동 83-2","c":"표지판형","ty":"표지(신)_철","bit":"","st":"","sy":"","fan":"","lt":false,"wb":false,"wf":"","sm":false,"ac":"","af":"","r":5,"dead":false},{"n":"자연휴양림","a":"16123","i":"215000173","d":"불현동","y":37.889439,"x":127.136596,"ad":"경기도 동두천시 탑동동 83-2","c":"표지판형","ty":"표지(신)_철","bit":"","st":"","sy":"","fan":"","lt":false,"wb":false,"wf":"","sm":false,"ac":"","af":"","r":27,"dead":false},{"n":"놀자숲","a":"16124","i":"215000174","d":"불현동","y":37.886888,"x":127.137359,"ad":"경기도 동두천시 탑동동 24","c":"표지판형","ty":"표지(신)_철","bit":"","st":"","sy":"","fan":"","lt":false,"wb":false,"wf":"","sm":false,"ac":"","af":"","r":55,"dead":false},{"n":"니지모리스튜디오","a":"16125","i":"215000185","d":"불현동","y":37.879289,"x":127.092784,"ad":"경기도 동두천시 탑동동 산 237-2","c":"표지판형","ty":"표지미상","bit":"","st":"","sy":"","fan":"","lt":false,"wb":false,"wf":"","sm":false,"ac":"","af":"","r":280,"dead":false},{"n":"탑동윗말","a":"16126","i":"215000190","d":"불현동","y":37.891387,"x":127.106623,"ad":"경기도 동두천시 탑동동 389-2","c":"미확인","ty":"","bit":"","st":"","sy":"","fan":"","lt":false,"wb":false,"wf":"","sm":false,"ac":"","af":"","r":19,"dead":false},{"n":"탑동윗말","a":"16127","i":"215000191","d":"불현동","y":37.891173,"x":127.107858,"ad":"경기도 동두천시 탑동동 397-7","c":"미확인","ty":"","bit":"","st":"","sy":"","fan":"","lt":false,"wb":false,"wf":"","sm":false,"ac":"","af":"","r":0,"dead":false},{"n":"중흥S클래스헤라시티","a":"16128","i":"215000202","d":"송내동","y":37.881241,"x":127.058718,"ad":"경기도 동두천시 송내동 341-6","c":"개방형","ty":"쉘터","bit":"","st":"","sy":"","fan":"","lt":false,"wb":false,"wf":"","sm":false,"ac":"","af":"","r":2,"dead":false},{"n":"중흥S클래스헤라시티","a":"16129","i":"215000206","d":"송내동","y":37.881473,"x":127.059151,"ad":"경기도 동두천시 송내동 342-2","c":"개방형","ty":"쉘터","bit":"","st":"","sy":"","fan":"","lt":false,"wb":false,"wf":"","sm":false,"ac":"","af":"","r":622,"dead":false},{"n":"성보주택","a":"16130","i":"215000048","d":"소요동","y":37.943812,"x":127.059497,"ad":"경기도 동두천시 상봉암동 147-28","c":"개방형","ty":"쉘터","bit":"2018","st":"","sy":"","fan":"","lt":true,"wb":false,"wf":"","sm":false,"ac":"","af":"","r":88,"dead":false},{"n":"(임시)큰시장공영주차장","a":"16131","i":"215000207","d":"생연2동","y":37.899693,"x":127.051115,"ad":"경기도 동두천시 생연동 698-27","c":"개방형","ty":"개방형","bit":"","st":"냉온열의자","sy":"2026","fan":"","lt":false,"wb":false,"wf":"","sm":false,"ac":"","af":"","r":31,"dead":false},{"n":"성보주택","a":"16132","i":"215000061","d":"소요동","y":37.943821,"x":127.059258,"ad":"경기도 동두천시 상봉암동 146-26","c":"개방형","ty":"쉘터","bit":"2018","st":"냉온열의자","sy":"2026","fan":"","lt":true,"wb":false,"wf":"","sm":false,"ac":"","af":"","r":410,"dead":false},{"n":"소요산입구","a":"16133","i":"215000220","d":"소요동","y":37.946555,"x":127.060619,"ad":"경기도 동두천시 상봉암동 115-87","c":"미확인","ty":"","bit":"","st":"","sy":"","fan":"","lt":false,"wb":false,"wf":"","sm":false,"ac":"","af":"","r":0,"dead":false},{"n":"소요산입구","a":"16134","i":"215000221","d":"소요동","y":37.946082,"x":127.060918,"ad":"경기도 동두천시 상봉암동 140-23","c":"표지판형","ty":"표지(구)","bit":"","st":"","sy":"","fan":"","lt":false,"wb":false,"wf":"","sm":false,"ac":"","af":"","r":78,"dead":false},{"n":"국민마트","a":"16135","i":"215000123","d":"불현동","y":37.900279,"x":127.06212,"ad":"경기도 동두천시 생연동 392-1","c":"개방형","ty":"쉘터","bit":"2020","st":"","sy":"","fan":"","lt":true,"wb":false,"wf":"","sm":false,"ac":"","af":"","r":709,"dead":false},{"n":"소요산역","a":"16136","i":"215000062","d":"소요동","y":37.948016,"x":127.061457,"ad":"경기도 동두천시 상봉암동 129-3","c":"밀폐형","ty":"쉘터","bit":"2020","st":"냉온열의자","sy":"2021","fan":"2024","lt":true,"wb":false,"wf":"","sm":true,"ac":"2024","af":"벽걸이","r":5236,"dead":false},{"n":"아낌없이주는나무","a":"16137","i":"215000208","d":"소요동","y":37.927125,"x":127.042714,"ad":"경기도 동두천시 안흥동 49-2","c":"표지판형","ty":"표지(신)_철","bit":"","st":"","sy":"","fan":"","lt":false,"wb":false,"wf":"","sm":false,"ac":"","af":"","r":0,"dead":false},{"n":"아낌없이주는나무","a":"16138","i":"215000209","d":"소요동","y":37.926999,"x":127.042605,"ad":"경기도 동두천시 안흥동 산 63-2","c":"표지판형","ty":"표지(신)_철","bit":"","st":"","sy":"","fan":"","lt":false,"wb":false,"wf":"","sm":false,"ac":"","af":"","r":3,"dead":false},{"n":"에이스입구","a":"16139","i":"215000102","d":"불현동","y":37.899257,"x":127.06095,"ad":"경기도 동두천시 생연동 387-7","c":"개방형","ty":"협소보도형","bit":"2011","st":"","sy":"","fan":"","lt":true,"wb":false,"wf":"","sm":false,"ac":"","af":"","r":208,"dead":false},{"n":"소요산역","a":"16140","i":"215000047","d":"소요동","y":37.947939,"x":127.061772,"ad":"경기도 동두천시 상봉암동 129-5","c":"밀폐형","ty":"쉘터","bit":"2020","st":"온열의자","sy":"2024","fan":"","lt":true,"wb":false,"wf":"","sm":true,"ac":"2023","af":"천장형","r":8063,"dead":false},{"n":"상봉암동","a":"16141","i":"215000066","d":"소요동","y":37.953577,"x":127.061973,"ad":"경기도 동두천시 상봉암동 71-2","c":"밀폐형","ty":"방풍형","bit":"2012","st":"냉온열의자","sy":"2025","fan":"2025","lt":true,"wb":false,"wf":"","sm":false,"ac":"","af":"","r":448,"dead":false},{"n":"상봉암동","a":"16142","i":"215000069","d":"소요동","y":37.953317,"x":127.062218,"ad":"경기도 동두천시 상봉암동 71-20","c":"밀폐형","ty":"방풍형","bit":"2012","st":"","sy":"","fan":"2025","lt":true,"wb":false,"wf":"","sm":false,"ac":"","af":"","r":107,"dead":false},{"n":"하봉암동","a":"16143","i":"215000074","d":"소요동","y":37.95673,"x":127.062283,"ad":"경기도 동두천시 하봉암동 315-1","c":"밀폐형","ty":"방풍형","bit":"2020","st":"냉온열의자","sy":"2025","fan":"2025","lt":true,"wb":false,"wf":"","sm":false,"ac":"","af":"","r":1809,"dead":false},{"n":"하봉암동","a":"16144","i":"215000073","d":"소요동","y":37.95764,"x":127.062579,"ad":"경기도 동두천시 하봉암동 315-8","c":"밀폐형","ty":"방풍형","bit":"2020","st":"","sy":"","fan":"2025","lt":true,"wb":false,"wf":"","sm":false,"ac":"","af":"","r":232,"dead":false},{"n":"쇠목6교입구","a":"16145","i":"215000210","d":"불현동","y":37.90449,"x":127.08979,"ad":"경기도 동두천시 광암동 269-2","c":"표지판형","ty":"표지(신)_철","bit":"","st":"","sy":"","fan":"","lt":false,"wb":false,"wf":"","sm":false,"ac":"","af":"","r":0,"dead":false},{"n":"쇠목6교입구","a":"16146","i":"215000211","d":"불현동","y":37.904547,"x":127.089619,"ad":"경기도 동두천시 광암동 269-2","c":"표지판형","ty":"표지(신)_철","bit":"","st":"","sy":"","fan":"","lt":false,"wb":false,"wf":"","sm":false,"ac":"","af":"","r":0,"dead":false},{"n":"생연주공아파트","a":"16147","i":"215000103","d":"불현동","y":37.899582,"x":127.064584,"ad":"경기도 동두천시 생연동 284","c":"개방형","ty":"쉘터","bit":"2011","st":"온열의자","sy":"2024","fan":"2025","lt":true,"wb":false,"wf":"","sm":false,"ac":"","af":"","r":353,"dead":false},{"n":"생연주공아파트","a":"16148","i":"215000122","d":"불현동","y":37.899409,"x":127.064563,"ad":"경기도 동두천시 생연동 305-2","c":"개방형","ty":"쉘터","bit":"2022","st":"","sy":"","fan":"2025","lt":true,"wb":false,"wf":"","sm":false,"ac":"","af":"","r":479,"dead":false},{"n":"부대앞","a":"16149","i":"215000075","d":"소요동","y":37.962179,"x":127.064654,"ad":"경기도 동두천시 하봉암동 62-5","c":"개방형","ty":"쉘터","bit":"2020","st":"","sy":"","fan":"2025","lt":true,"wb":false,"wf":"","sm":false,"ac":"","af":"","r":791,"dead":false},{"n":"부대앞","a":"16150","i":"215000072","d":"소요동","y":37.962451,"x":127.065196,"ad":"경기도 동두천시 하봉암동 57","c":"개방형","ty":"쉘터","bit":"2019","st":"","sy":"","fan":"2025","lt":true,"wb":false,"wf":"","sm":false,"ac":"","af":"","r":80,"dead":false},{"n":"쇠목길산촌","a":"16151","i":"215000214","d":"불현동","y":37.905296,"x":127.097693,"ad":"경기도 동두천시 광암동 103-1","c":"표지판형","ty":"표지(신)_철","bit":"","st":"","sy":"","fan":"","lt":false,"wb":false,"wf":"","sm":false,"ac":"","af":"","r":0,"dead":false},{"n":"쇠목길삼거리","a":"16152","i":"215000212","d":"불현동","y":37.908951,"x":127.110702,"ad":"경기도 동두천시 광암동 54-3","c":"표지판형","ty":"표지(신)_철","bit":"","st":"","sy":"","fan":"","lt":false,"wb":false,"wf":"","sm":false,"ac":"","af":"","r":0,"dead":false},{"n":"쇠목길삼거리","a":"16153","i":"215000213","d":"불현동","y":37.90895,"x":127.110452,"ad":"경기도 동두천시 광암동 53-2","c":"표지판형","ty":"표지(신)_철","bit":"","st":"","sy":"","fan":"","lt":false,"wb":false,"wf":"","sm":false,"ac":"","af":"","r":0,"dead":false},{"n":"마니커","a":"16154","i":"215000076","d":"소요동","y":37.97152,"x":127.067371,"ad":"경기도 동두천시 하봉암동 141-6","c":"개방형","ty":"쉘터","bit":"2020","st":"","sy":"","fan":"","lt":true,"wb":false,"wf":"","sm":false,"ac":"","af":"","r":589,"dead":false},{"n":"휴먼빌2차아파트","a":"16156","i":"215000192","d":"불현동","y":37.887964,"x":127.064964,"ad":"경기도 동두천시 지행동 200","c":"개방형","ty":"쉘터","bit":"2025","st":"","sy":"","fan":"","lt":false,"wb":false,"wf":"","sm":false,"ac":"","af":"","r":939,"dead":false},{"n":"안말입구.승전교입구","a":"16157","i":"215000067","d":"소요동","y":37.968957,"x":127.067651,"ad":"경기도 동두천시 하봉암동 116-3","c":"개방형","ty":"쉘터","bit":"2015","st":"","sy":"","fan":"","lt":true,"wb":false,"wf":"","sm":false,"ac":"","af":"","r":2704,"dead":false},{"n":"마니커","a":"16158","i":"215000071","d":"소요동","y":37.971655,"x":127.067658,"ad":"경기도 동두천시 하봉암동 142-12","c":"개방형","ty":"쉘터","bit":"2020","st":"","sy":"","fan":"","lt":true,"wb":false,"wf":"","sm":false,"ac":"","af":"","r":81,"dead":false},{"n":"상우아파트","a":"16159","i":"215000104","d":"불현동","y":37.898783,"x":127.067485,"ad":"경기도 동두천시 생연동 293-16","c":"개방형","ty":"쉘터","bit":"2012","st":"냉온열의자","sy":"2026","fan":"","lt":true,"wb":true,"wf":"","sm":false,"ac":"","af":"","r":925,"dead":false},{"n":"안말입구","a":"16160","i":"215000068","d":"소요동","y":37.968857,"x":127.067887,"ad":"경기도 동두천시 하봉암동 115-5","c":"개방형","ty":"쉘터","bit":"2022","st":"","sy":"","fan":"","lt":false,"wb":false,"wf":"","sm":false,"ac":"","af":"","r":502,"dead":false},{"n":"동우빌라","a":"16161","i":"215000121","d":"불현동","y":37.897982,"x":127.06828,"ad":"경기도 동두천시 생연동 313-2","c":"개방형","ty":"쉘터","bit":"","st":"","sy":"","fan":"","lt":true,"wb":false,"wf":"","sm":false,"ac":"","af":"","r":122,"dead":false},{"n":"만복사주유소","a":"16162","i":"215000105","d":"불현동","y":37.895966,"x":127.071636,"ad":"경기도 동두천시 생연동 42-3","c":"표지판형","ty":"표지(구)","bit":"","st":"","sy":"","fan":"","lt":false,"wb":false,"wf":"","sm":false,"ac":"","af":"","r":14,"dead":false},{"n":"동원효실버센터","a":"16163","i":"215000106","d":"불현동","y":37.894405,"x":127.075034,"ad":"경기도 동두천시 생연동 10-42","c":"표지판형","ty":"표지(구)","bit":"","st":"","sy":"","fan":"","lt":false,"wb":false,"wf":"","sm":false,"ac":"","af":"","r":153,"dead":false},{"n":"동원효실버센터","a":"16164","i":"215000120","d":"불현동","y":37.894207,"x":127.07517,"ad":"경기도 동두천시 생연동 13-18","c":"개방형","ty":"쉘터","bit":"","st":"","sy":"","fan":"","lt":false,"wb":false,"wf":"","sm":false,"ac":"","af":"","r":26,"dead":false},{"n":"외인주택","a":"16165","i":"215000107","d":"불현동","y":37.894442,"x":127.080505,"ad":"경기도 동두천시 광암동 520-12","c":"개방형","ty":"쉘터","bit":"2020","st":"냉온열의자","sy":"2022","fan":"","lt":true,"wb":false,"wf":"","sm":false,"ac":"","af":"","r":335,"dead":false},{"n":"외인주택","a":"16166","i":"215000119","d":"불현동","y":37.894309,"x":127.080946,"ad":"경기도 동두천시 광암동 520-12","c":"개방형","ty":"쉘터","bit":"","st":"","sy":"","fan":"","lt":false,"wb":false,"wf":"","sm":false,"ac":"","af":"","r":9,"dead":false},{"n":"광암동파출소","a":"16167","i":"215000118","d":"불현동","y":37.895224,"x":127.084222,"ad":"경기도 동두천시 광암동 497-1","c":"개방형","ty":"쉘터","bit":"2024","st":"","sy":"","fan":"2024","lt":true,"wb":false,"wf":"","sm":false,"ac":"","af":"","r":70,"dead":false},{"n":"광암동파출소","a":"16168","i":"215000108","d":"불현동","y":37.895372,"x":127.084127,"ad":"경기도 동두천시 광암동 494-29","c":"밀폐형","ty":"쉘터","bit":"2024","st":"냉온열의자","sy":"2021","fan":"2024","lt":true,"wb":false,"wf":"","sm":true,"ac":"2026","af":"벽걸이","r":1759,"dead":false},{"n":"광암동다리","a":"16169","i":"215000109","d":"불현동","y":37.895261,"x":127.086845,"ad":"경기도 동두천시 광암동 198-3","c":"개방형","ty":"쉘터","bit":"2020","st":"냉온열의자","sy":"2025","fan":"2024","lt":true,"wb":false,"wf":"","sm":false,"ac":"","af":"","r":534,"dead":false},{"n":"광암동다리","a":"16170","i":"215000117","d":"불현동","y":37.895162,"x":127.086614,"ad":"경기도 동두천시 광암동 198-16","c":"표지판형","ty":"표지(구)","bit":"","st":"","sy":"","fan":"","lt":true,"wb":false,"wf":"","sm":false,"ac":"","af":"","r":23,"dead":false},{"n":"조산마을입구","a":"16171","i":"215000110","d":"불현동","y":37.892156,"x":127.089669,"ad":"경기도 동두천시 광암동 175-3","c":"개방형","ty":"쉘터","bit":"2020","st":"","sy":"","fan":"","lt":true,"wb":false,"wf":"","sm":false,"ac":"","af":"","r":552,"dead":false},{"n":"조산마을입구","a":"16172","i":"215000116","d":"불현동","y":37.892003,"x":127.089591,"ad":"경기도 동두천시 광암동 176","c":"개방형","ty":"쉘터","bit":"2022","st":"","sy":"","fan":"","lt":true,"wb":false,"wf":"","sm":false,"ac":"","af":"","r":57,"dead":false},{"n":"조산마을","a":"16173","i":"215000101","d":"불현동","y":37.886155,"x":127.092444,"ad":"경기도 동두천시 탑동동 860-2","c":"표지판형","ty":"표지(신)_철","bit":"","st":"","sy":"","fan":"","lt":false,"wb":false,"wf":"","sm":false,"ac":"","af":"","r":1,"dead":false},{"n":"조산마을","a":"16174","i":"215000097","d":"불현동","y":37.88629,"x":127.09256,"ad":"경기도 동두천시 탑동동 848-12","c":"개방형","ty":"쉘터","bit":"","st":"","sy":"","fan":"","lt":false,"wb":false,"wf":"","sm":false,"ac":"","af":"","r":83,"dead":false},{"n":"섬마을","a":"16175","i":"215000115","d":"불현동","y":37.890924,"x":127.093948,"ad":"경기도 동두천시 탑동동 755-2","c":"표지판형","ty":"표지(구)","bit":"","st":"","sy":"","fan":"","lt":false,"wb":false,"wf":"","sm":false,"ac":"","af":"","r":6,"dead":false},{"n":"섬마을","a":"16176","i":"215000111","d":"불현동","y":37.89104,"x":127.094172,"ad":"경기도 동두천시 탑동동 755-1","c":"개방형","ty":"쉘터","bit":"","st":"","sy":"","fan":"","lt":false,"wb":false,"wf":"","sm":false,"ac":"","af":"","r":51,"dead":false},{"n":"삼익빌라","a":"16177","i":"215000114","d":"불현동","y":37.890469,"x":127.099697,"ad":"경기도 동두천시 탑동동 687-3","c":"표지판형","ty":"표지미상","bit":"","st":"","sy":"","fan":"","lt":false,"wb":false,"wf":"","sm":false,"ac":"","af":"","r":1,"dead":false},{"n":"삼익빌라","a":"16178","i":"215000112","d":"불현동","y":37.890558,"x":127.099653,"ad":"경기도 동두천시 탑동동 687-7","c":"개방형","ty":"쉘터","bit":"","st":"","sy":"","fan":"","lt":false,"wb":false,"wf":"","sm":false,"ac":"","af":"","r":62,"dead":false},{"n":"탑동초교","a":"16179","i":"215000187","d":"불현동","y":37.890968,"x":127.102723,"ad":"경기도 동두천시 탑동동 691-3","c":"개방형","ty":"쉘터","bit":"2024","st":"","sy":"","fan":"","lt":false,"wb":false,"wf":"","sm":false,"ac":"","af":"","r":123,"dead":false},{"n":"장림회관","a":"16181","i":"215000100","d":"불현동","y":37.873651,"x":127.10654,"ad":"경기도 동두천시 탑동동 567-5","c":"표지판형","ty":"표지(구)","bit":"","st":"","sy":"","fan":"","lt":false,"wb":false,"wf":"","sm":false,"ac":"","af":"","r":0,"dead":false},{"n":"장림회관","a":"16182","i":"215000098","d":"불현동","y":37.873869,"x":127.106552,"ad":"경기도 동두천시 탑동동 578-1","c":"개방형","ty":"쉘터(구)","bit":"","st":"","sy":"","fan":"","lt":false,"wb":false,"wf":"","sm":false,"ac":"","af":"","r":123,"dead":false},{"n":"동점마을","a":"16184","i":"215000179","d":"불현동","y":37.896846,"x":127.11668,"ad":"경기도 동두천시 탑동동 325-6","c":"개방형","ty":"쉘터(구)","bit":"","st":"","sy":"","fan":"","lt":false,"wb":false,"wf":"","sm":false,"ac":"","af":"","r":97,"dead":false},{"n":"동점마을","a":"16185","i":"215000180","d":"불현동","y":37.896773,"x":127.116752,"ad":"경기도 동두천시 탑동동 330-1","c":"표지판형","ty":"표지(신)","bit":"","st":"","sy":"","fan":"","lt":false,"wb":false,"wf":"","sm":false,"ac":"","af":"","r":2,"dead":false},{"n":"샘터농원","a":"16186","i":"215000182","d":"불현동","y":37.892065,"x":127.121628,"ad":"경기도 동두천시 탑동동 218-1","c":"표지판형","ty":"표지미상","bit":"","st":"","sy":"","fan":"","lt":false,"wb":false,"wf":"","sm":false,"ac":"","af":"","r":1,"dead":false},{"n":"샘터농원","a":"16187","i":"215000181","d":"불현동","y":37.89217,"x":127.121626,"ad":"경기도 동두천시 탑동동 223-1","c":"개방형","ty":"쉘터","bit":"","st":"","sy":"","fan":"","lt":false,"wb":false,"wf":"","sm":false,"ac":"","af":"","r":59,"dead":false},{"n":"왕방리.산장","a":"16188","i":"215000186","d":"불현동","y":37.890473,"x":127.132341,"ad":"경기도 동두천시 탑동동 71-4","c":"개방형","ty":"쉘터(구)","bit":"","st":"","sy":"","fan":"","lt":false,"wb":false,"wf":"","sm":false,"ac":"","af":"","r":30,"dead":false},{"n":"왕방리.산장","a":"16189","i":"215000231","d":"불현동","y":37.891025,"x":127.131569,"ad":"경기도 동두천시 탑동동 211-6","c":"개방형","ty":"쉘터","bit":"","st":"","sy":"","fan":"","lt":true,"wb":false,"wf":"","sm":false,"ac":"","af":"","r":237,"dead":false},{"n":"오지재고개","a":"16192","i":"215000183","d":"불현동","y":37.876865,"x":127.140031,"ad":"경기도 동두천시 탑동동 산 40-1","c":"미확인","ty":"","bit":"","st":"","sy":"","fan":"","lt":false,"wb":false,"wf":"","sm":false,"ac":"","af":"","r":0,"dead":false},{"n":"오지재고개","a":"16193","i":"215000184","d":"불현동","y":37.877084,"x":127.139876,"ad":"경기도 동두천시 탑동동 산 40","c":"미확인","ty":"","bit":"","st":"","sy":"","fan":"","lt":false,"wb":false,"wf":"","sm":false,"ac":"","af":"","r":0,"dead":false},{"n":"천연장","a":"16195","i":"215000152","d":"생연1동","y":37.912479,"x":127.055879,"ad":"경기도 동두천시 생연동 571-42","c":"표지판형","ty":"표지미상","bit":"","st":"","sy":"","fan":"","lt":false,"wb":false,"wf":"","sm":false,"ac":"","af":"","r":0,"dead":false},{"n":"38호근린공원","a":"16196","i":"215000153","d":"소요동","y":37.935943,"x":127.05344,"ad":"경기도 동두천시 동두천동 553-1","c":"미확인","ty":"","bit":"","st":"","sy":"","fan":"","lt":false,"wb":false,"wf":"","sm":false,"ac":"","af":"","r":0,"dead":false},{"n":"서울병원.중앙시장","a":"16197","i":"215000154","d":"중앙동","y":37.909029,"x":127.054978,"ad":"경기도 동두천시 생연동 601-30","c":"미확인","ty":"","bit":"","st":"","sy":"","fan":"","lt":false,"wb":false,"wf":"","sm":false,"ac":"","af":"","r":0,"dead":false},{"n":"아차노리입구","a":"16198","i":"215000155","d":"불현동","y":37.877597,"x":127.057084,"ad":"경기도 동두천시 송내동 487-12","c":"개방형","ty":"쉘터(구)","bit":"2021","st":"","sy":"","fan":"","lt":true,"wb":false,"wf":"","sm":false,"ac":"","af":"","r":284,"dead":false},{"n":"아차노리입구","a":"16199","i":"215000156","d":"불현동","y":37.876328,"x":127.057192,"ad":"경기도 동두천시 송내동 482-10","c":"개방형","ty":"쉘터(구)","bit":"2015","st":"","sy":"","fan":"","lt":false,"wb":false,"wf":"","sm":false,"ac":"","af":"","r":106,"dead":false},{"n":"상우아파트","a":"16200","i":"215000157","d":"불현동","y":37.898802,"x":127.066958,"ad":"경기도 동두천시 생연동 300-12","c":"개방형","ty":"쉘터(구)","bit":"2016","st":"온열의자","sy":"2024","fan":"","lt":false,"wb":false,"wf":"","sm":false,"ac":"","af":"","r":108,"dead":false},{"n":"만복사주유소","a":"16201","i":"215000158","d":"불현동","y":37.895727,"x":127.071607,"ad":"경기도 동두천시 생연동 42-3","c":"표지판형","ty":"표지(구)","bit":"","st":"","sy":"","fan":"","lt":false,"wb":false,"wf":"","sm":false,"ac":"","af":"","r":12,"dead":false},{"n":"어린이도서관","a":"16202","i":"215000393","d":"송내동","y":37.892365,"x":127.051371,"ad":"경기도 동두천시 지행동 716","c":"표지판형","ty":"표지(구)","bit":"","st":"","sy":"","fan":"","lt":false,"wb":false,"wf":"","sm":false,"ac":"","af":"","r":18,"dead":false},{"n":"소요초등학교","a":"16210","i":"215000167","d":"소요동","y":37.947605,"x":127.05437,"ad":"경기도 동두천시 상봉암동 233-37","c":"표지판형","ty":"표지(구)","bit":"","st":"","sy":"","fan":"","lt":false,"wb":false,"wf":"","sm":false,"ac":"","af":"","r":2,"dead":false},{"n":"지행역4번출구","a":"16217","i":"215000168","d":"송내동","y":37.892397,"x":127.056159,"ad":"경기도 동두천시 지행동 483-18","c":"개방형","ty":"쉘터","bit":"2021","st":"냉온열의자","sy":"2025","fan":"2024","lt":true,"wb":false,"wf":"2022","sm":false,"ac":"","af":"","r":6961,"dead":false},{"n":"ACE아파트","a":"16218","i":"215000189","d":"불현동","y":37.897497,"x":127.062916,"ad":"경기도 동두천시 생연동 345-6","c":"개방형","ty":"쉘터","bit":"2022","st":"","sy":"","fan":"","lt":true,"wb":false,"wf":"","sm":false,"ac":"","af":"","r":677,"dead":false},{"n":"안흥동공설묘지입구","a":"16219","i":"215000193","d":"소요동","y":37.925952,"x":127.038736,"ad":"경기도 동두천시 안흥동 230-5","c":"표지판형","ty":"표지(구)","bit":"","st":"","sy":"","fan":"","lt":false,"wb":false,"wf":"","sm":false,"ac":"","af":"","r":0,"dead":false},{"n":"안흥동공설묘지입구","a":"16220","i":"215000194","d":"소요동","y":37.925903,"x":127.038787,"ad":"경기도 동두천시 안흥동 231-5","c":"표지판형","ty":"표지(구)","bit":"","st":"","sy":"","fan":"","lt":false,"wb":false,"wf":"","sm":false,"ac":"","af":"","r":17,"dead":false},{"n":"담안","a":"16221","i":"215000195","d":"소요동","y":37.927583,"x":127.029295,"ad":"경기도 동두천시 안흥동 363-6","c":"개방형","ty":"쉘터","bit":"","st":"","sy":"","fan":"","lt":false,"wb":false,"wf":"","sm":false,"ac":"","af":"","r":55,"dead":false},{"n":"담안","a":"16222","i":"215000196","d":"소요동","y":37.927517,"x":127.029283,"ad":"경기도 동두천시 안흥동 산 82-17","c":"개방형","ty":"쉘터","bit":"","st":"","sy":"","fan":"","lt":false,"wb":false,"wf":"","sm":false,"ac":"","af":"","r":112,"dead":false},{"n":"마을회관","a":"16223","i":"215000197","d":"소요동","y":37.92537,"x":127.023886,"ad":"경기도 동두천시 안흥동 374-3","c":"개방형","ty":"쉘터","bit":"","st":"","sy":"","fan":"","lt":false,"wb":false,"wf":"","sm":false,"ac":"","af":"","r":0,"dead":false},{"n":"마을회관","a":"16224","i":"215000198","d":"소요동","y":37.925675,"x":127.024612,"ad":"경기도 동두천시 안흥동 380","c":"개방형","ty":"쉘터","bit":"","st":"","sy":"","fan":"","lt":false,"wb":false,"wf":"","sm":false,"ac":"","af":"","r":214,"dead":false},{"n":"웃안흥(회차)","a":"16225","i":"215000199","d":"소요동","y":37.924275,"x":127.022616,"ad":"경기도 동두천시 안흥동 415-2","c":"표지판형","ty":"표지미상","bit":"","st":"","sy":"","fan":"","lt":false,"wb":false,"wf":"","sm":false,"ac":"","af":"","r":0,"dead":false},{"n":"송내주민센터송내주공2단지","a":"16250","i":"215000170","d":"송내동","y":37.890129,"x":127.054793,"ad":"경기도 동두천시 지행동 725-6","c":"표지판형","ty":"표지(구)","bit":"","st":"","sy":"","fan":"","lt":false,"wb":false,"wf":"","sm":false,"ac":"","af":"","r":3,"dead":false},{"n":"송내주공4단지","a":"16251","i":"215000171","d":"송내동","y":37.886686,"x":127.054517,"ad":"경기도 동두천시 송내동 698-2","c":"개방형","ty":"쉘터(구)","bit":"2012","st":"냉온열의자","sy":"2026","fan":"","lt":true,"wb":false,"wf":"","sm":false,"ac":"","af":"","r":7,"dead":false},{"n":"꿈나무도서관","a":"16254","i":"215000172","d":"송내동","y":37.892609,"x":127.051195,"ad":"경기도 동두천시 지행동 691-4","c":"표지판형","ty":"표지(구)","bit":"","st":"","sy":"","fan":"","lt":false,"wb":false,"wf":"","sm":false,"ac":"","af":"","r":4,"dead":false},{"n":"현대아이파크","a":"16258","i":"215000177","d":"송내동","y":37.884876,"x":127.051608,"ad":"경기도 동두천시 송내동 698-5","c":"개방형","ty":"쉘터","bit":"2012","st":"냉온열의자","sy":"2025","fan":"","lt":true,"wb":false,"wf":"","sm":false,"ac":"","af":"","r":1957,"dead":false},{"n":"서울병원사거리.중앙시장","a":"16259","i":"215000002","d":"중앙동","y":37.907309,"x":127.0546,"ad":"경기도 동두천시 생연동 612-18","c":"밀폐형","ty":"방풍형","bit":"2021","st":"","sy":"","fan":"2024","lt":false,"wb":false,"wf":"","sm":false,"ac":"","af":"","r":1458,"dead":false},{"n":"장림","a":"16260","i":"215000099","d":"불현동","y":37.868279,"x":127.107957,"ad":"경기도 동두천시 탑동동 508-2","c":"표지판형","ty":"표지(신)","bit":"","st":"","sy":"","fan":"","lt":false,"wb":false,"wf":"","sm":false,"ac":"","af":"","r":66,"dead":false},{"n":"송내주공5단지후문","a":"16261","i":"215000175","d":"송내동","y":37.8832,"x":127.053153,"ad":"경기도 동두천시 송내동 698-5","c":"개방형","ty":"쉘터","bit":"2021","st":"냉온열의자","sy":"2025","fan":"2025","lt":true,"wb":false,"wf":"","sm":false,"ac":"","af":"","r":2850,"dead":false},{"n":"현대아이파크","a":"16262","i":"215000178","d":"송내동","y":37.884922,"x":127.051392,"ad":"경기도 동두천시 송내동 698-5","c":"개방형","ty":"쉘터","bit":"2020","st":"","sy":"","fan":"","lt":true,"wb":false,"wf":"","sm":false,"ac":"","af":"","r":741,"dead":false},{"n":"동양엔파트","a":"16263","i":"215000343","d":"불현동","y":37.889462,"x":127.063122,"ad":"경기도 동두천시 지행동 174","c":"개방형","ty":"쉘터","bit":"","st":"","sy":"","fan":"","lt":false,"wb":false,"wf":"","sm":false,"ac":"","af":"","r":524,"dead":false},{"n":"월드메르디앙정문","a":"16264","i":"215000404","d":"생연1동","y":37.90547,"x":127.06427,"ad":"경기도 동두천시 생연동 227","c":"표지판형","ty":"표지(구)","bit":"","st":"","sy":"","fan":"","lt":false,"wb":false,"wf":"","sm":false,"ac":"","af":"","r":1254,"dead":false},{"n":"복합화력발전소","a":"16265","i":"215000227","d":"불현동","y":37.900611,"x":127.087854,"ad":"경기도 동두천시 광암동 121","c":"표지판형","ty":"표지(구)","bit":"","st":"","sy":"","fan":"","lt":false,"wb":false,"wf":"","sm":false,"ac":"","af":"","r":2,"dead":false},{"n":"조산마을회관","a":"16266","i":"215000200","d":"불현동","y":37.888996,"x":127.090548,"ad":"경기도 동두천시 탑동동 780-3","c":"개방형","ty":"쉘터(구)","bit":"","st":"","sy":"","fan":"","lt":false,"wb":false,"wf":"","sm":false,"ac":"","af":"","r":66,"dead":false},{"n":"골말","a":"16267","i":"215000204","d":"상패동","y":37.902067,"x":127.025399,"ad":"경기도 동두천시 상패동 682-1","c":"표지판형","ty":"표지(신)","bit":"","st":"","sy":"","fan":"","lt":false,"wb":false,"wf":"","sm":false,"ac":"","af":"","r":304,"dead":false},{"n":"무궁화빌라","a":"16268","i":"215000203","d":"상패동","y":37.899461,"x":127.036833,"ad":"경기도 동두천시 상패동 259-8","c":"표지판형","ty":"표지(구)","bit":"","st":"","sy":"","fan":"","lt":false,"wb":false,"wf":"","sm":false,"ac":"","af":"","r":124,"dead":false},{"n":"조흥아파트.종합운동장","a":"16269","i":"215000296","d":"불현동","y":37.901082,"x":127.065446,"ad":"경기도 동두천시 생연동 268-17","c":"표지판형","ty":"표지(구)","bit":"","st":"","sy":"","fan":"","lt":false,"wb":false,"wf":"","sm":false,"ac":"","af":"","r":118,"dead":false},{"n":"조산마을회관","a":"16270","i":"215000228","d":"불현동","y":37.889012,"x":127.09036,"ad":"경기도 동두천시 탑동동 780-3","c":"표지판형","ty":"표지(구)","bit":"","st":"","sy":"","fan":"","lt":false,"wb":false,"wf":"","sm":false,"ac":"","af":"","r":1,"dead":false},{"n":"신흥고등학교","a":"16271","i":"215000222","d":"소요동","y":37.929657,"x":127.048448,"ad":"경기도 동두천시 안흥동 41-86","c":"미확인","ty":"","bit":"","st":"","sy":"","fan":"","lt":false,"wb":false,"wf":"","sm":false,"ac":"","af":"","r":0,"dead":false},{"n":"골말상회","a":"16272","i":"215000218","d":"상패동","y":37.902878,"x":127.02572,"ad":"경기도 동두천시 상패동 667-2","c":"표지판형","ty":"표지(신)","bit":"","st":"","sy":"","fan":"","lt":false,"wb":false,"wf":"","sm":false,"ac":"","af":"","r":121,"dead":false},{"n":"휴먼빌2차아파트","a":"16273","i":"215000371","d":"불현동","y":37.887726,"x":127.065195,"ad":"경기도 동두천시 지행동 196-1","c":"개방형","ty":"협소보도형","bit":"2025","st":"","sy":"","fan":"","lt":false,"wb":false,"wf":"","sm":false,"ac":"","af":"","r":4,"dead":false},{"n":"소요산","a":"16274","i":"215000217","d":"소요동","y":37.951098,"x":127.061865,"ad":"경기도 동두천시 상봉암동 82-1","c":"표지판형","ty":"표지(구)","bit":"","st":"","sy":"","fan":"","lt":false,"wb":false,"wf":"","sm":false,"ac":"","af":"","r":20,"dead":false},{"n":"상봉암동.소요산","a":"16275","i":"215000216","d":"소요동","y":37.951107,"x":127.061612,"ad":"경기도 동두천시 상봉암동 82-1","c":"표지판형","ty":"표지(구)","bit":"","st":"","sy":"","fan":"","lt":false,"wb":false,"wf":"","sm":false,"ac":"","af":"","r":25,"dead":false},{"n":"에이스아파트","a":"16276","i":"215000188","d":"불현동","y":37.897386,"x":127.062534,"ad":"경기도 동두천시 생연동 345-6","c":"개방형","ty":"쉘터","bit":"2024","st":"","sy":"","fan":"","lt":true,"wb":false,"wf":"","sm":false,"ac":"","af":"","r":7459,"dead":false},{"n":"송내주공5단지후문","a":"16277","i":"215000176","d":"송내동","y":37.883083,"x":127.052982,"ad":"경기도 동두천시 송내동 698-5","c":"밀폐형","ty":"방풍형","bit":"2020","st":"냉온열의자","sy":"2025","fan":"2025","lt":true,"wb":false,"wf":"","sm":false,"ac":"","af":"","r":1169,"dead":false},{"n":"월드메르디앙정문","a":"16278","i":"215000406","d":"생연1동","y":37.905546,"x":127.064082,"ad":"경기도 동두천시 생연동 227-3","c":"표지판형","ty":"표지(구)","bit":"","st":"","sy":"","fan":"","lt":false,"wb":false,"wf":"","sm":false,"ac":"","af":"","r":12,"dead":false},{"n":"탑동초교","a":"16279","i":"215000113","d":"불현동","y":37.890971,"x":127.103562,"ad":"경기도 동두천시 탑동동 406-2","c":"개방형","ty":"쉘터","bit":"2024","st":"","sy":"","fan":"","lt":false,"wb":false,"wf":"","sm":false,"ac":"","af":"","r":1,"dead":false},{"n":"신흥고등학교","a":"16280","i":"215000223","d":"소요동","y":37.92909,"x":127.048489,"ad":"경기도 동두천시 안흥동 42-121","c":"개방형","ty":"쉘터","bit":"","st":"","sy":"","fan":"","lt":false,"wb":false,"wf":"","sm":false,"ac":"","af":"","r":539,"dead":false},{"n":"지행역1번출구","a":"16281","i":"215000169","d":"송내동","y":37.891465,"x":127.055117,"ad":"경기도 동두천시 지행동 723","c":"개방형","ty":"쉘터","bit":"2022","st":"","sy":"","fan":"","lt":false,"wb":false,"wf":"","sm":false,"ac":"","af":"","r":512,"dead":false},{"n":"구)버스터미널","a":"16283","i":"215000003","d":"중앙동","y":37.905369,"x":127.054085,"ad":"경기도 동두천시 생연동 594-1","c":"밀폐형","ty":"쉘터","bit":"2020","st":"냉온열의자","sy":"2024","fan":"2024","lt":true,"wb":false,"wf":"","sm":true,"ac":"2024","af":"벽걸이","r":5542,"dead":false},{"n":"구)버스터미널","a":"16284","i":"215000024","d":"중앙동","y":37.904725,"x":127.053716,"ad":"경기도 동두천시 생연동 655-2","c":"개방형","ty":"쉘터","bit":"2020","st":"냉온열의자","sy":"2024","fan":"2024","lt":true,"wb":false,"wf":"","sm":false,"ac":"","af":"","r":7093,"dead":false},{"n":"다목적회관","a":"16285","i":"215000236","d":"불현동","y":37.893835,"x":127.087811,"ad":"경기도 동두천시 광암동 181-13","c":"표지판형","ty":"표지(구)","bit":"","st":"","sy":"","fan":"","lt":false,"wb":false,"wf":"","sm":false,"ac":"","af":"","r":20,"dead":false},{"n":"다목적회관","a":"16286","i":"215000237","d":"불현동","y":37.893825,"x":127.088011,"ad":"경기도 동두천시 광암동 185-3","c":"밀폐형","ty":"방풍형","bit":"2025","st":"냉온열의자","sy":"2023","fan":"2025","lt":true,"wb":true,"wf":"","sm":false,"ac":"","af":"","r":195,"dead":false},{"n":"길손식당앞","a":"16287","i":"215000239","d":"불현동","y":37.892977,"x":127.109281,"ad":"경기도 동두천시 탑동동 353-2","c":"표지판형","ty":"표지(신)","bit":"","st":"","sy":"","fan":"","lt":false,"wb":false,"wf":"","sm":false,"ac":"","af":"","r":1,"dead":false},{"n":"길손식당앞","a":"16288","i":"215000238","d":"불현동","y":37.893051,"x":127.109179,"ad":"경기도 동두천시 탑동동 363-1","c":"표지판형","ty":"표지(신)","bit":"","st":"","sy":"","fan":"","lt":false,"wb":false,"wf":"","sm":false,"ac":"","af":"","r":14,"dead":false},{"n":"옥금사","a":"16289","i":"215000241","d":"불현동","y":37.896439,"x":127.111985,"ad":"경기도 동두천시 탑동동 366","c":"표지판형","ty":"표지(구)","bit":"","st":"","sy":"","fan":"","lt":false,"wb":false,"wf":"","sm":false,"ac":"","af":"","r":0,"dead":false},{"n":"옥금사","a":"16290","i":"215000240","d":"불현동","y":37.896277,"x":127.111827,"ad":"경기도 동두천시 탑동동 364-3","c":"표지판형","ty":"표지(신)","bit":"","st":"","sy":"","fan":"","lt":false,"wb":false,"wf":"","sm":false,"ac":"","af":"","r":11,"dead":false},{"n":"왕방약수터","a":"16291","i":"215000233","d":"불현동","y":37.892707,"x":127.135264,"ad":"경기도 동두천시 탑동동 103-1","c":"표지판형","ty":"표지(구)","bit":"","st":"","sy":"","fan":"","lt":false,"wb":false,"wf":"","sm":false,"ac":"","af":"","r":0,"dead":false},{"n":"왕방약수터","a":"16292","i":"215000234","d":"불현동","y":37.892799,"x":127.135428,"ad":"경기도 동두천시 탑동동 103-1","c":"표지판형","ty":"표지(신)","bit":"","st":"","sy":"","fan":"","lt":false,"wb":false,"wf":"","sm":false,"ac":"","af":"","r":1,"dead":false},{"n":"경기도립노인전문병원","a":"16293","i":"215000235","d":"불현동","y":37.900485,"x":127.135872,"ad":"경기도 동두천시 탑동동 140-5","c":"표지판형","ty":"표지(구)","bit":"","st":"","sy":"","fan":"","lt":false,"wb":false,"wf":"","sm":false,"ac":"","af":"","r":476,"dead":false},{"n":"지행주유소","a":"16294","i":"215000242","d":"송내동","y":37.884154,"x":127.056545,"ad":"경기도 동두천시 송내동 593-33","c":"개방형","ty":"쉘터","bit":"2016","st":"","sy":"","fan":"","lt":true,"wb":false,"wf":"","sm":false,"ac":"","af":"","r":25,"dead":false},{"n":"지행주유소","a":"16295","i":"215000243","d":"송내동","y":37.884542,"x":127.056326,"ad":"경기도 동두천시 송내동 605-1","c":"표지판형","ty":"표지(구)","bit":"","st":"","sy":"","fan":"","lt":false,"wb":false,"wf":"","sm":false,"ac":"","af":"","r":5,"dead":false},{"n":"마고개.이담병원","a":"16296","i":"215000282","d":"불현동","y":37.907807,"x":127.03605,"ad":"경기도 동두천시 상패동 200-3","c":"개방형","ty":"쉘터(구)","bit":"2020","st":"","sy":"","fan":"","lt":false,"wb":false,"wf":"","sm":false,"ac":"","af":"","r":45,"dead":false},{"n":"사천골","a":"16297","i":"215000283","d":"상패동","y":37.91031,"x":127.017318,"ad":"경기도 동두천시 상패동 977-5","c":"개방형","ty":"쉘터","bit":"","st":"","sy":"","fan":"","lt":false,"wb":false,"wf":"","sm":false,"ac":"","af":"","r":3,"dead":false},{"n":"전원주택단지","a":"16298","i":"215000244","d":"상패동","y":37.906336,"x":127.040548,"ad":"경기도 동두천시 상패동 114-3","c":"개방형","ty":"협소보도형","bit":"2025","st":"","sy":"","fan":"","lt":false,"wb":false,"wf":"","sm":false,"ac":"","af":"","r":61,"dead":false},{"n":"보산역사거리","a":"16299","i":"215000245","d":"생연1동","y":37.913158,"x":127.058225,"ad":"경기도 동두천시 생연동 537-15","c":"개방형","ty":"협소보도형","bit":"","st":"","sy":"","fan":"","lt":false,"wb":false,"wf":"","sm":false,"ac":"","af":"","r":199,"dead":false},{"n":"대양운수","a":"16300","i":"215000246","d":"송내동","y":37.882345,"x":127.060061,"ad":"경기도 동두천시 송내동 339-1","c":"표지판형","ty":"표지(구)","bit":"","st":"","sy":"","fan":"","lt":false,"wb":false,"wf":"","sm":false,"ac":"","af":"","r":0,"dead":false},{"n":"대양운수","a":"16301","i":"215000247","d":"송내동","y":37.882343,"x":127.059876,"ad":"경기도 동두천시 송내동 352-2","c":"표지판형","ty":"표지(구)","bit":"","st":"","sy":"","fan":"","lt":false,"wb":false,"wf":"","sm":false,"ac":"","af":"","r":22,"dead":false},{"n":"송내슈퍼","a":"16302","i":"215000248","d":"송내동","y":37.883149,"x":127.066252,"ad":"경기도 동두천시 송내동 279-1","c":"표지판형","ty":"표지미상","bit":"","st":"","sy":"","fan":"","lt":false,"wb":false,"wf":"","sm":false,"ac":"","af":"","r":0,"dead":false},{"n":"송내슈퍼","a":"16303","i":"215000249","d":"송내동","y":37.883362,"x":127.066335,"ad":"경기도 동두천시 송내동 288-6","c":"표지판형","ty":"표지(구)","bit":"","st":"","sy":"","fan":"","lt":false,"wb":false,"wf":"","sm":false,"ac":"","af":"","r":38,"dead":false},{"n":"송내마을회관","a":"16304","i":"215000250","d":"송내동","y":37.882415,"x":127.069614,"ad":"경기도 동두천시 송내동 118-3","c":"표지판형","ty":"표지(신)","bit":"","st":"","sy":"","fan":"","lt":false,"wb":false,"wf":"","sm":false,"ac":"","af":"","r":0,"dead":false},{"n":"송내마을회관","a":"16305","i":"215000251","d":"송내동","y":37.882568,"x":127.069723,"ad":"경기도 동두천시 송내동 117-8","c":"개방형","ty":"쉘터(구)","bit":"","st":"","sy":"","fan":"","lt":false,"wb":false,"wf":"","sm":false,"ac":"","af":"","r":1,"dead":false},{"n":"동두천중고등학교","a":"16306","i":"215000256","d":"생연1동","y":37.905221,"x":127.058208,"ad":"경기도 동두천시 생연동 450-28","c":"표지판형","ty":"표지(구)","bit":"","st":"","sy":"","fan":"","lt":false,"wb":false,"wf":"","sm":false,"ac":"","af":"","r":448,"dead":false},{"n":"건영아파트","a":"16307","i":"215000381","d":"생연2동","y":37.897022,"x":127.045311,"ad":"경기도 동두천시 생연동 788-17","c":"표지판형","ty":"표지(신)","bit":"","st":"","sy":"","fan":"","lt":false,"wb":false,"wf":"","sm":false,"ac":"","af":"","r":1,"dead":false},{"n":"한빛누리중고등학교","a":"16308","i":"215000258","d":"생연1동","y":37.911152,"x":127.060333,"ad":"경기도 동두천시 생연동 522-1","c":"개방형","ty":"협소보도형","bit":"","st":"냉온열의자","sy":"2025","fan":"","lt":false,"wb":false,"wf":"","sm":false,"ac":"","af":"","r":314,"dead":false},{"n":"미2사단후문","a":"16309","i":"215000259","d":"소요동","y":37.924728,"x":127.056261,"ad":"경기도 동두천시 동두천동 245-87","c":"표지판형","ty":"표지(신)","bit":"","st":"","sy":"","fan":"","lt":false,"wb":false,"wf":"","sm":false,"ac":"","af":"","r":4,"dead":false},{"n":"신흥중고","a":"16310","i":"215000265","d":"소요동","y":37.929178,"x":127.04807,"ad":"경기도 동두천시 안흥동 42","c":"표지판형","ty":"표지(구)","bit":"","st":"","sy":"","fan":"","lt":false,"wb":false,"wf":"","sm":false,"ac":"","af":"","r":6,"dead":false},{"n":"신흥고등학교","a":"16311","i":"215000289","d":"소요동","y":37.929443,"x":127.048592,"ad":"경기도 동두천시 안흥동 42-111","c":"표지판형","ty":"표지(구)","bit":"","st":"","sy":"","fan":"","lt":false,"wb":false,"wf":"","sm":false,"ac":"","af":"","r":0,"dead":true},{"n":"도독골","a":"16312","i":"215000272","d":"소요동","y":37.937936,"x":127.048916,"ad":"경기도 동두천시 안흥동 12-1","c":"미확인","ty":"","bit":"","st":"","sy":"","fan":"","lt":false,"wb":false,"wf":"","sm":false,"ac":"","af":"","r":0,"dead":false},{"n":"도독골","a":"16313","i":"215000273","d":"소요동","y":37.938252,"x":127.049003,"ad":"경기도 동두천시 안흥동 12","c":"미확인","ty":"","bit":"","st":"","sy":"","fan":"","lt":false,"wb":false,"wf":"","sm":false,"ac":"","af":"","r":0,"dead":false},{"n":"삼진공장","a":"16314","i":"215000269","d":"소요동","y":37.926569,"x":127.033269,"ad":"경기도 동두천시 안흥동 산 78-2","c":"개방형","ty":"쉘터","bit":"","st":"","sy":"","fan":"","lt":false,"wb":false,"wf":"","sm":false,"ac":"","af":"","r":2,"dead":false},{"n":"삼진공장","a":"16315","i":"215000268","d":"소요동","y":37.926627,"x":127.033315,"ad":"경기도 동두천시 안흥동 산 78-1","c":"개방형","ty":"쉘터","bit":"","st":"","sy":"","fan":"","lt":false,"wb":false,"wf":"","sm":false,"ac":"","af":"","r":0,"dead":false},{"n":"동두천역","a":"16316","i":"215000260","d":"소요동","y":37.927784,"x":127.054112,"ad":"경기도 동두천시 동두천동 245-18","c":"개방형","ty":"쉘터","bit":"","st":"","sy":"","fan":"","lt":false,"wb":false,"wf":"","sm":false,"ac":"","af":"","r":220,"dead":false},{"n":"생연중학교","a":"16317","i":"215000253","d":"송내동","y":37.896471,"x":127.04875,"ad":"경기도 동두천시 지행동 702","c":"미확인","ty":"","bit":"","st":"","sy":"","fan":"","lt":false,"wb":false,"wf":"","sm":false,"ac":"","af":"","r":0,"dead":false},{"n":"송내안골","a":"16318","i":"215000252","d":"송내동","y":37.881727,"x":127.073967,"ad":"경기도 동두천시 송내동 135-4","c":"개방형","ty":"쉘터","bit":"","st":"","sy":"","fan":"","lt":false,"wb":false,"wf":"","sm":false,"ac":"","af":"","r":31,"dead":false},{"n":"무궁화유지","a":"16319","i":"215000286","d":"상패동","y":37.897594,"x":127.034434,"ad":"경기도 동두천시 상패동 349-1","c":"표지판형","ty":"표지(구)","bit":"","st":"","sy":"","fan":"","lt":false,"wb":false,"wf":"","sm":false,"ac":"","af":"","r":14,"dead":false},{"n":"무궁화빌라","a":"16320","i":"215000276","d":"상패동","y":37.899547,"x":127.036858,"ad":"경기도 동두천시 상패동 250-2","c":"표지판형","ty":"표지(구)","bit":"","st":"","sy":"","fan":"","lt":false,"wb":false,"wf":"","sm":false,"ac":"","af":"","r":60,"dead":false},{"n":"신한대학교입구","a":"16321","i":"215000288","d":"상패동","y":37.903184,"x":127.042339,"ad":"경기도 동두천시 상패동 91-2","c":"개방형","ty":"쉘터(구)","bit":"2015","st":"","sy":"","fan":"","lt":false,"wb":false,"wf":"","sm":false,"ac":"","af":"","r":94,"dead":false},{"n":"신한대학교입구","a":"16322","i":"215000274","d":"상패동","y":37.903228,"x":127.042084,"ad":"경기도 동두천시 상패동 90-5","c":"개방형","ty":"쉘터(구)","bit":"","st":"","sy":"","fan":"","lt":false,"wb":false,"wf":"","sm":false,"ac":"","af":"","r":4,"dead":false},{"n":"한양그린빌라","a":"16323","i":"215000275","d":"상패동","y":37.900821,"x":127.040572,"ad":"경기도 동두천시 상패동 249-3","c":"표지판형","ty":"표지(구)","bit":"","st":"","sy":"","fan":"","lt":false,"wb":false,"wf":"","sm":false,"ac":"","af":"","r":25,"dead":false},{"n":"생연중학교","a":"16324","i":"215000254","d":"송내동","y":37.896456,"x":127.048901,"ad":"경기도 동두천시 지행동 702","c":"미확인","ty":"","bit":"","st":"","sy":"","fan":"","lt":false,"wb":false,"wf":"","sm":false,"ac":"","af":"","r":0,"dead":false},{"n":"세아아파트","a":"16325","i":"215000255","d":"생연2동","y":37.900215,"x":127.050397,"ad":"경기도 동두천시 생연동 809-10","c":"미확인","ty":"","bit":"","st":"","sy":"","fan":"","lt":false,"wb":false,"wf":"","sm":false,"ac":"","af":"","r":0,"dead":false},{"n":"한국문화영상고등학교","a":"16326","i":"215000257","d":"생연1동","y":37.906793,"x":127.058304,"ad":"경기도 동두천시 생연동 480-24","c":"개방형","ty":"협소보도형","bit":"2025","st":"","sy":"","fan":"","lt":false,"wb":false,"wf":"","sm":false,"ac":"","af":"","r":342,"dead":false},{"n":"공단앞","a":"16327","i":"215000261","d":"소요동","y":37.929461,"x":127.050977,"ad":"경기도 동두천시 동두천동 541-16","c":"표지판형","ty":"표지(구)","bit":"","st":"","sy":"","fan":"","lt":false,"wb":false,"wf":"","sm":false,"ac":"","af":"","r":1,"dead":false},{"n":"공단앞","a":"16328","i":"215000262","d":"소요동","y":37.929277,"x":127.050885,"ad":"경기도 동두천시 동두천동 538","c":"표지판형","ty":"표지(신)","bit":"","st":"","sy":"","fan":"","lt":false,"wb":false,"wf":"","sm":false,"ac":"","af":"","r":30,"dead":false},{"n":"동두천역","a":"16329","i":"215000263","d":"소요동","y":37.92777,"x":127.053987,"ad":"경기도 동두천시 동두천동 229-10","c":"개방형","ty":"쉘터","bit":"","st":"","sy":"","fan":"","lt":false,"wb":false,"wf":"","sm":false,"ac":"","af":"","r":235,"dead":false},{"n":"미2사단후문","a":"16330","i":"215000264","d":"소요동","y":37.924663,"x":127.056322,"ad":"경기도 동두천시 동두천동 205-13","c":"표지판형","ty":"표지(신)","bit":"","st":"","sy":"","fan":"","lt":false,"wb":false,"wf":"","sm":false,"ac":"","af":"","r":56,"dead":false},{"n":"안흥경로당","a":"16331","i":"215000266","d":"소요동","y":37.92854,"x":127.045075,"ad":"경기도 동두천시 안흥동 53-8","c":"표지판형","ty":"표지(구)","bit":"","st":"","sy":"","fan":"","lt":false,"wb":false,"wf":"","sm":false,"ac":"","af":"","r":4,"dead":false},{"n":"안흥경로당","a":"16332","i":"215000271","d":"소요동","y":37.928752,"x":127.045292,"ad":"경기도 동두천시 안흥동 54-4","c":"개방형","ty":"쉘터","bit":"","st":"","sy":"","fan":"","lt":false,"wb":false,"wf":"","sm":false,"ac":"","af":"","r":192,"dead":false},{"n":"덕수사입구","a":"16333","i":"215000277","d":"상패동","y":37.900222,"x":127.025318,"ad":"경기도 동두천시 상패동 742","c":"표지판형","ty":"표지(신)","bit":"","st":"","sy":"","fan":"","lt":false,"wb":false,"wf":"","sm":false,"ac":"","af":"","r":2,"dead":false},{"n":"골말","a":"16334","i":"215000278","d":"상패동","y":37.902053,"x":127.025457,"ad":"경기도 동두천시 상패동 687-1","c":"개방형","ty":"쉘터(구)","bit":"","st":"","sy":"","fan":"","lt":false,"wb":false,"wf":"","sm":false,"ac":"","af":"","r":40,"dead":false},{"n":"골말상회","a":"16335","i":"215000279","d":"상패동","y":37.902995,"x":127.026181,"ad":"경기도 동두천시 상패동 664-3","c":"표지판형","ty":"표지(신)","bit":"","st":"","sy":"","fan":"","lt":false,"wb":false,"wf":"","sm":false,"ac":"","af":"","r":11,"dead":false},{"n":"정감마을","a":"16336","i":"215000280","d":"상패동","y":37.905587,"x":127.02883,"ad":"경기도 동두천시 상패동 655-1","c":"표지판형","ty":"표지(구)","bit":"","st":"","sy":"","fan":"","lt":false,"wb":false,"wf":"","sm":false,"ac":"","af":"","r":31,"dead":false},{"n":"동양엔파트","a":"16337","i":"215000365","d":"불현동","y":37.889338,"x":127.063392,"ad":"경기도 동두천시 지행동 172","c":"개방형","ty":"쉘터","bit":"","st":"","sy":"","fan":"","lt":false,"wb":true,"wf":"","sm":false,"ac":"","af":"","r":280,"dead":false},{"n":"정감마을","a":"16338","i":"215000284","d":"상패동","y":37.905587,"x":127.028671,"ad":"경기도 동두천시 상패동 656-3","c":"표지판형","ty":"표지(구)","bit":"","st":"","sy":"","fan":"","lt":false,"wb":false,"wf":"","sm":false,"ac":"","af":"","r":46,"dead":false},{"n":"덕수사입구","a":"16339","i":"215000285","d":"상패동","y":37.900179,"x":127.025227,"ad":"경기도 동두천시 상패동 729-3","c":"표지판형","ty":"표지(구)","bit":"","st":"","sy":"","fan":"","lt":false,"wb":false,"wf":"","sm":false,"ac":"","af":"","r":153,"dead":false},{"n":"한양그린빌라","a":"16340","i":"215000287","d":"상패동","y":37.900812,"x":127.040652,"ad":"경기도 동두천시 상패동 281-1","c":"개방형","ty":"쉘터","bit":"","st":"","sy":"","fan":"","lt":false,"wb":false,"wf":"","sm":false,"ac":"","af":"","r":91,"dead":false},{"n":"중앙성모병원","a":"16341","i":"215000400","d":"중앙동","y":37.908533,"x":127.054245,"ad":"경기도 동두천시 생연동 611-40","c":"표지판형","ty":"표지(구)","bit":"","st":"","sy":"","fan":"","lt":false,"wb":false,"wf":"","sm":false,"ac":"","af":"","r":34,"dead":false},{"n":"소요산관리사무소","a":"16342","i":"215000340","d":"소요동","y":37.945978,"x":127.06931,"ad":"경기도 동두천시 상봉암동 산 1-6","c":"미확인","ty":"","bit":"","st":"","sy":"","fan":"","lt":false,"wb":false,"wf":"","sm":false,"ac":"","af":"","r":0,"dead":false},{"n":"서울재활요양병원","a":"16343","i":"215000341","d":"불현동","y":37.878963,"x":127.101929,"ad":"경기도 동두천시 탑동동 산 107-1","c":"표지판형","ty":"표지(신)","bit":"","st":"","sy":"","fan":"","lt":false,"wb":false,"wf":"","sm":false,"ac":"","af":"","r":0,"dead":false},{"n":"동두천중앙역","a":"16344","i":"215000408","d":"중앙동","y":37.902057,"x":127.055638,"ad":"경기도 동두천시 생연동 678-27","c":"개방형","ty":"쉘터","bit":"","st":"","sy":"","fan":"","lt":false,"wb":false,"wf":"","sm":false,"ac":"","af":"","r":331,"dead":false},{"n":"동두천중고등학교","a":"16345","i":"215000366","d":"불현동","y":37.905125,"x":127.057985,"ad":"경기도 동두천시 생연동 453-9","c":"개방형","ty":"협소보도형","bit":"2025","st":"","sy":"","fan":"","lt":false,"wb":false,"wf":"","sm":false,"ac":"","af":"","r":68,"dead":false},{"n":"시립도서관","a":"16347","i":"215000307","d":"상패동","y":37.907122,"x":127.046983,"ad":"경기도 동두천시 상패동 50-40","c":"표지판형","ty":"표지(구)","bit":"","st":"","sy":"","fan":"","lt":false,"wb":false,"wf":"","sm":false,"ac":"","af":"","r":2,"dead":false},{"n":"송내주공1단지","a":"16348","i":"215000397","d":"송내동","y":37.892673,"x":127.049255,"ad":"경기도 동두천시 지행동 691-4","c":"표지판형","ty":"표지(구)_기둥","bit":"","st":"","sy":"","fan":"","lt":false,"wb":false,"wf":"","sm":false,"ac":"","af":"","r":12,"dead":false},{"n":"우리은행","a":"16349","i":"215000416","d":"송내동","y":37.892565,"x":127.052723,"ad":"경기도 동두천시 지행동 716","c":"개방형","ty":"쉘터","bit":"2022","st":"","sy":"","fan":"","lt":false,"wb":true,"wf":"","sm":false,"ac":"","af":"","r":2594,"dead":false},{"n":"서울재활요양병원","a":"16350","i":"215000342","d":"불현동","y":37.879054,"x":127.101945,"ad":"경기도 동두천시 탑동동 651-2","c":"개방형","ty":"쉘터(구)","bit":"","st":"","sy":"","fan":"","lt":false,"wb":false,"wf":"","sm":false,"ac":"","af":"","r":194,"dead":false},{"n":"중앙역입구.어수사거리","a":"16351","i":"215000414","d":"생연2동","y":37.902342,"x":127.053057,"ad":"경기도 동두천시 생연동 688-54","c":"표지판형","ty":"표지미상","bit":"","st":"","sy":"","fan":"","lt":false,"wb":false,"wf":"","sm":false,"ac":"","af":"","r":0,"dead":true},{"n":"KT동두천지사","a":"16352","i":"215000364","d":"중앙동","y":37.904318,"x":127.054402,"ad":"경기도 동두천시 생연동 653-7","c":"개방형","ty":"쉘터","bit":"","st":"","sy":"","fan":"","lt":false,"wb":false,"wf":"","sm":false,"ac":"","af":"","r":820,"dead":false},{"n":"동두천시청","a":"16353","i":"215000415","d":"생연1동","y":37.902986,"x":127.061069,"ad":"경기도 동두천시 생연동 430-14","c":"표지판형","ty":"표지(구)","bit":"2026","st":"","sy":"","fan":"","lt":false,"wb":false,"wf":"","sm":false,"ac":"","af":"","r":107,"dead":false},{"n":"가르멜수도원","a":"16355","i":"215000297","d":"소요동","y":37.934011,"x":127.040699,"ad":"경기도 동두천시 안흥동 124-6","c":"개방형","ty":"쉘터","bit":"","st":"","sy":"","fan":"","lt":false,"wb":false,"wf":"","sm":false,"ac":"","af":"","r":70,"dead":false},{"n":"동방아파트","a":"16356","i":"215000229","d":"불현동","y":37.902385,"x":127.067822,"ad":"경기도 동두천시 생연동 251","c":"표지판형","ty":"표지(구)","bit":"","st":"","sy":"","fan":"","lt":false,"wb":false,"wf":"","sm":false,"ac":"","af":"","r":26,"dead":false},{"n":"전원주택단지","a":"16358","i":"215000360","d":"상패동","y":37.906528,"x":127.040633,"ad":"경기도 동두천시 상패동 114-2","c":"개방형","ty":"협소보도형","bit":"2025","st":"","sy":"","fan":"","lt":false,"wb":false,"wf":"","sm":false,"ac":"","af":"","r":8,"dead":false},{"n":"생연중학교","a":"16360","i":"215000410","d":"송내동","y":37.895919,"x":127.048375,"ad":"경기도 동두천시 지행동 703","c":"개방형","ty":"협소보도형","bit":"2025","st":"","sy":"","fan":"2025","lt":false,"wb":false,"wf":"","sm":false,"ac":"","af":"","r":929,"dead":false},{"n":"농협송내지점","a":"16361","i":"215000411","d":"송내동","y":37.89229,"x":127.053997,"ad":"경기도 동두천시 지행동 716","c":"개방형","ty":"쉘터","bit":"2022","st":"","sy":"","fan":"","lt":false,"wb":false,"wf":"","sm":false,"ac":"","af":"","r":7583,"dead":false},{"n":"동두천중앙역","a":"16362","i":"215000412","d":"중앙동","y":37.902494,"x":127.055773,"ad":"경기도 동두천시 생연동 678-30","c":"밀폐형","ty":"방풍형","bit":"","st":"","sy":"","fan":"","lt":false,"wb":false,"wf":"","sm":false,"ac":"","af":"","r":310,"dead":false},{"n":"정장로사거리","a":"16363","i":"215000413","d":"중앙동","y":37.903895,"x":127.05586,"ad":"경기도 동두천시 생연동 641-3","c":"표지판형","ty":"표지(신)","bit":"","st":"","sy":"","fan":"","lt":false,"wb":false,"wf":"","sm":false,"ac":"","af":"","r":29,"dead":false},{"n":"삼천리자전거포","a":"16364","i":"215000409","d":"중앙동","y":37.90479,"x":127.051304,"ad":"경기도 동두천시 생연동 820-1","c":"표지판형","ty":"표지(구)","bit":"","st":"","sy":"","fan":"","lt":false,"wb":false,"wf":"","sm":false,"ac":"","af":"","r":1,"dead":false},{"n":"정장로앞","a":"16365","i":"215000407","d":"중앙동","y":37.904066,"x":127.055684,"ad":"경기도 동두천시 생연동 647-6","c":"표지판형","ty":"표지(구)","bit":"","st":"","sy":"","fan":"","lt":false,"wb":false,"wf":"","sm":false,"ac":"","af":"","r":2,"dead":false},{"n":"지행역부영9단지","a":"16367","i":"215000370","d":"송내동","y":37.893019,"x":127.05497,"ad":"경기도 동두천시 지행동 715","c":"개방형","ty":"쉘터(구)","bit":"","st":"온열의자","sy":"2023","fan":"","lt":false,"wb":true,"wf":"","sm":false,"ac":"","af":"","r":118,"dead":false},{"n":"부영5단지","a":"16368","i":"215000405","d":"생연2동","y":37.89742,"x":127.055362,"ad":"경기도 동두천시 생연동 716-1","c":"개방형","ty":"쉘터(구)","bit":"","st":"","sy":"","fan":"","lt":false,"wb":false,"wf":"","sm":false,"ac":"","af":"","r":15,"dead":false},{"n":"상패주민센터앞","a":"16369","i":"215000403","d":"상패동","y":37.905541,"x":127.04561,"ad":"경기도 동두천시 상패동 127-10","c":"표지판형","ty":"표지(구)","bit":"","st":"","sy":"","fan":"","lt":false,"wb":false,"wf":"","sm":false,"ac":"","af":"","r":4,"dead":false},{"n":"부영3단지","a":"16370","i":"215000394","d":"송내동","y":37.894961,"x":127.048679,"ad":"경기도 동두천시 지행동 711","c":"표지판형","ty":"표지(구)","bit":"","st":"","sy":"","fan":"","lt":false,"wb":false,"wf":"","sm":false,"ac":"","af":"","r":10,"dead":false},{"n":"부영3단지","a":"16371","i":"215000395","d":"송내동","y":37.894781,"x":127.048881,"ad":"경기도 동두천시 지행동 691","c":"표지판형","ty":"표지(구)_기둥","bit":"","st":"","sy":"","fan":"","lt":false,"wb":false,"wf":"","sm":false,"ac":"","af":"","r":27,"dead":false},{"n":"송내주공1단지","a":"16372","i":"215000396","d":"송내동","y":37.89242,"x":127.049201,"ad":"경기도 동두천시 지행동 716","c":"표지판형","ty":"표지(구)_기둥","bit":"","st":"","sy":"","fan":"","lt":false,"wb":false,"wf":"","sm":false,"ac":"","af":"","r":23,"dead":false},{"n":"송내주공2단지","a":"16373","i":"215000398","d":"송내동","y":37.891109,"x":127.053315,"ad":"경기도 동두천시 지행동 725-4","c":"표지판형","ty":"표지(구)","bit":"","st":"","sy":"","fan":"","lt":false,"wb":false,"wf":"","sm":false,"ac":"","af":"","r":1,"dead":false},{"n":"중앙성모병원","a":"16374","i":"215000358","d":"중앙동","y":37.908664,"x":127.054108,"ad":"경기도 동두천시 생연동 577-107","c":"표지판형","ty":"표지(구)","bit":"","st":"","sy":"","fan":"","lt":false,"wb":false,"wf":"","sm":false,"ac":"","af":"","r":104,"dead":false},{"n":"동광교앞","a":"16375","i":"215000355","d":"상패동","y":37.90893,"x":127.048967,"ad":"경기도 동두천시 상패동 51-14","c":"표지판형","ty":"표지(구)","bit":"","st":"","sy":"","fan":"","lt":false,"wb":false,"wf":"","sm":false,"ac":"","af":"","r":21,"dead":false},{"n":"시립도서관","a":"16376","i":"215000308","d":"상패동","y":37.907164,"x":127.047287,"ad":"경기도 동두천시 상패동 53-2","c":"표지판형","ty":"표지(구)","bit":"","st":"","sy":"","fan":"","lt":false,"wb":false,"wf":"","sm":false,"ac":"","af":"","r":91,"dead":false},{"n":"상패주민센터앞","a":"16377","i":"215000401","d":"상패동","y":37.905376,"x":127.045579,"ad":"경기도 동두천시 상패동 80-2","c":"표지판형","ty":"표지(구)","bit":"","st":"","sy":"","fan":"","lt":false,"wb":false,"wf":"","sm":false,"ac":"","af":"","r":22,"dead":false},{"n":"생연중학교","a":"16378","i":"215000402","d":"송내동","y":37.896139,"x":127.048017,"ad":"경기도 동두천시 지행동 703","c":"개방형","ty":"협소보도형","bit":"2025","st":"","sy":"","fan":"2025","lt":false,"wb":false,"wf":"","sm":false,"ac":"","af":"","r":859,"dead":false},{"n":"동광교앞","a":"16379","i":"215000399","d":"상패동","y":37.908775,"x":127.048749,"ad":"경기도 동두천시 상패동 40-17","c":"개방형","ty":"쉘터","bit":"","st":"","sy":"","fan":"","lt":false,"wb":false,"wf":"","sm":false,"ac":"","af":"","r":73,"dead":false},{"n":"무궁화유지","a":"16380","i":"215000427","d":"상패동","y":37.897514,"x":127.034202,"ad":"경기도 동두천시 상패동 258-2","c":"표지판형","ty":"표지(구)","bit":"","st":"","sy":"","fan":"","lt":false,"wb":false,"wf":"","sm":false,"ac":"","af":"","r":1,"dead":false},{"n":"현대아파트","a":"16381","i":"215000383","d":"불현동","y":37.892407,"x":127.058979,"ad":"경기도 동두천시 지행동 290-15","c":"표지판형","ty":"표지(구)","bit":"","st":"","sy":"","fan":"","lt":false,"wb":false,"wf":"","sm":false,"ac":"","af":"","r":350,"dead":false},{"n":"중앙중고등학교","a":"16382","i":"215000384","d":"송내동","y":37.892562,"x":127.05839,"ad":"경기도 동두천시 지행동 284-27","c":"표지판형","ty":"표지(구)_기둥","bit":"","st":"","sy":"","fan":"","lt":false,"wb":false,"wf":"","sm":false,"ac":"","af":"","r":309,"dead":false},{"n":"스위트빌","a":"16383","i":"215000385","d":"불현동","y":37.888257,"x":127.061876,"ad":"경기도 동두천시 지행동 387-13","c":"개방형","ty":"협소보도형","bit":"2025","st":"","sy":"","fan":"","lt":false,"wb":false,"wf":"","sm":false,"ac":"","af":"","r":50,"dead":false},{"n":"못골터널","a":"16384","i":"215000386","d":"생연1동","y":37.908745,"x":127.065933,"ad":"경기도 동두천시 생연동 219-5","c":"표지판형","ty":"표지(구)_기둥","bit":"","st":"","sy":"","fan":"","lt":false,"wb":false,"wf":"","sm":false,"ac":"","af":"","r":188,"dead":false},{"n":"못골터널","a":"16385","i":"215000387","d":"생연1동","y":37.908883,"x":127.065675,"ad":"경기도 동두천시 생연동 218-4","c":"표지판형","ty":"표지(구)_기둥","bit":"","st":"","sy":"","fan":"","lt":false,"wb":false,"wf":"","sm":false,"ac":"","af":"","r":15,"dead":false},{"n":"못골","a":"16386","i":"215000388","d":"생연1동","y":37.908792,"x":127.068528,"ad":"경기도 동두천시 생연동 200-3","c":"개방형","ty":"쉘터","bit":"2022","st":"냉온열의자","sy":"2025","fan":"","lt":false,"wb":false,"wf":"","sm":false,"ac":"","af":"","r":128,"dead":false},{"n":"동두천예비군훈련장","a":"16387","i":"215000389","d":"생연1동","y":37.90462,"x":127.070546,"ad":"경기도 동두천시 생연동 89-1","c":"표지판형","ty":"표지(구)","bit":"","st":"","sy":"","fan":"","lt":false,"wb":false,"wf":"","sm":false,"ac":"","af":"","r":50,"dead":false},{"n":"지행초교","a":"16388","i":"215000313","d":"불현동","y":37.893197,"x":127.061023,"ad":"경기도 동두천시 지행동 313-1","c":"표지판형","ty":"표지(구)","bit":"","st":"","sy":"","fan":"","lt":false,"wb":false,"wf":"","sm":false,"ac":"","af":"","r":473,"dead":false},{"n":"지행주공후문","a":"16389","i":"215000390","d":"불현동","y":37.894838,"x":127.061117,"ad":"경기도 동두천시 지행동 268-10","c":"표지판형","ty":"표지(신)","bit":"","st":"","sy":"","fan":"","lt":false,"wb":false,"wf":"","sm":false,"ac":"","af":"","r":155,"dead":false},{"n":"동두천보건소.대방노블랜드아파트","a":"16390","i":"215000391","d":"송내동","y":37.895809,"x":127.051947,"ad":"경기도 동두천시 지행동 704","c":"표지판형","ty":"표지(구)_기둥","bit":"","st":"","sy":"","fan":"","lt":false,"wb":false,"wf":"","sm":false,"ac":"","af":"","r":455,"dead":false},{"n":"기상아파트","a":"16391","i":"215000322","d":"불현동","y":37.902711,"x":127.068741,"ad":"경기도 동두천시 생연동 251-4","c":"표지판형","ty":"표지(구)","bit":"","st":"","sy":"","fan":"","lt":false,"wb":false,"wf":"","sm":false,"ac":"","af":"","r":318,"dead":false},{"n":"월드메르디앙","a":"16392","i":"215000392","d":"생연1동","y":37.904358,"x":127.063655,"ad":"경기도 동두천시 생연동 231","c":"표지판형","ty":"표지(구)_기둥","bit":"","st":"","sy":"","fan":"","lt":false,"wb":false,"wf":"","sm":false,"ac":"","af":"","r":13,"dead":false},{"n":"브라운스톤.인터포레","a":"16393","i":"215000321","d":"불현동","y":37.900399,"x":127.064317,"ad":"경기도 동두천시 생연동 283-4","c":"밀폐형","ty":"방풍형","bit":"2025","st":"","sy":"","fan":"","lt":false,"wb":false,"wf":"","sm":false,"ac":"","af":"","r":282,"dead":false},{"n":"브라운스톤.인터포레","a":"16394","i":"215000320","d":"불현동","y":37.900535,"x":127.064235,"ad":"경기도 동두천시 생연동 283-4","c":"개방형","ty":"쉘터","bit":"2025","st":"냉온열의자","sy":"2025","fan":"2025","lt":false,"wb":true,"wf":"","sm":false,"ac":"","af":"","r":1301,"dead":false},{"n":"한국문화영상고등학교","a":"16395","i":"215000367","d":"생연1동","y":37.906737,"x":127.058069,"ad":"경기도 동두천시 생연동 484-1","c":"개방형","ty":"협소보도형","bit":"2025","st":"","sy":"","fan":"","lt":false,"wb":false,"wf":"","sm":false,"ac":"","af":"","r":120,"dead":false},{"n":"동두천시청.동두천중고등학교","a":"16396","i":"215000417","d":"불현동","y":37.903879,"x":127.059643,"ad":"경기도 동두천시 생연동 453-10","c":"표지판형","ty":"표지(신)","bit":"","st":"","sy":"","fan":"","lt":false,"wb":false,"wf":"","sm":false,"ac":"","af":"","r":956,"dead":false},{"n":"생연1동주민센터","a":"16397","i":"215000418","d":"생연1동","y":37.906968,"x":127.065122,"ad":"경기도 동두천시 생연동 213-12","c":"개방형","ty":"쉘터","bit":"","st":"","sy":"","fan":"","lt":false,"wb":false,"wf":"","sm":false,"ac":"","af":"","r":1165,"dead":false},{"n":"못골","a":"16398","i":"215000419","d":"생연1동","y":37.908687,"x":127.068427,"ad":"경기도 동두천시 생연동 200-16","c":"개방형","ty":"협소보도형","bit":"2021","st":"냉온열의자","sy":"2025","fan":"","lt":false,"wb":false,"wf":"","sm":false,"ac":"","af":"","r":426,"dead":false},{"n":"동두천예비군훈련장","a":"16399","i":"215000420","d":"생연1동","y":37.904521,"x":127.070328,"ad":"경기도 동두천시 생연동 89-1","c":"표지판형","ty":"표지(구)","bit":"","st":"","sy":"","fan":"","lt":false,"wb":false,"wf":"","sm":false,"ac":"","af":"","r":463,"dead":false},{"n":"기상아파트","a":"16400","i":"215000323","d":"불현동","y":37.90278,"x":127.068665,"ad":"경기도 동두천시 생연동 251","c":"개방형","ty":"쉘터","bit":"2022","st":"","sy":"","fan":"","lt":false,"wb":false,"wf":"","sm":false,"ac":"","af":"","r":1915,"dead":false},{"n":"조흥아파트.종합운동장","a":"16401","i":"215000295","d":"불현동","y":37.901149,"x":127.065289,"ad":"경기도 동두천시 생연동 270-6","c":"표지판형","ty":"표지(구)","bit":"2022","st":"","sy":"","fan":"","lt":false,"wb":false,"wf":"","sm":false,"ac":"","af":"","r":1955,"dead":false},{"n":"동두천보건소.대방노블랜드아파트","a":"16402","i":"215000421","d":"생연2동","y":37.896027,"x":127.051783,"ad":"경기도 동두천시 생연동 714-11","c":"표지판형","ty":"표지(구)_기둥","bit":"","st":"","sy":"","fan":"","lt":false,"wb":false,"wf":"","sm":false,"ac":"","af":"","r":588,"dead":false},{"n":"지행주공후문","a":"16403","i":"215000422","d":"불현동","y":37.894816,"x":127.060888,"ad":"경기도 동두천시 지행동 270-6","c":"표지판형","ty":"표지(신)","bit":"","st":"","sy":"","fan":"","lt":false,"wb":false,"wf":"","sm":false,"ac":"","af":"","r":499,"dead":false},{"n":"스위트빌","a":"16404","i":"215000423","d":"불현동","y":37.888425,"x":127.061872,"ad":"경기도 동두천시 지행동 387-18","c":"개방형","ty":"협소보도형","bit":"2025","st":"","sy":"","fan":"","lt":false,"wb":false,"wf":"","sm":false,"ac":"","af":"","r":158,"dead":false},{"n":"동방아파트","a":"16405","i":"215000293","d":"불현동","y":37.902261,"x":127.067814,"ad":"경기도 동두천시 생연동 254-13","c":"표지판형","ty":"표지(구)","bit":"","st":"","sy":"","fan":"","lt":false,"wb":false,"wf":"","sm":false,"ac":"","af":"","r":185,"dead":false},{"n":"복합화력발전소","a":"16406","i":"215000298","d":"불현동","y":37.90075,"x":127.087714,"ad":"경기도 동두천시 광암동 121","c":"표지판형","ty":"표지(구)","bit":"","st":"","sy":"","fan":"","lt":false,"wb":false,"wf":"","sm":false,"ac":"","af":"","r":48,"dead":false},{"n":"새은혜아파트","a":"16407","i":"215000306","d":"상패동","y":37.910836,"x":127.049314,"ad":"경기도 동두천시 상패동 31-68","c":"표지판형","ty":"표지(구)","bit":"","st":"","sy":"","fan":"","lt":false,"wb":false,"wf":"","sm":false,"ac":"","af":"","r":0,"dead":false},{"n":"미2사단","a":"16408","i":"215000302","d":"보산동","y":37.917926,"x":127.056129,"ad":"경기도 동두천시 보산동 466","c":"미확인","ty":"","bit":"","st":"","sy":"","fan":"","lt":false,"wb":false,"wf":"","sm":false,"ac":"","af":"","r":0,"dead":false},{"n":"동두천노인전문요양센터","a":"16409","i":"215000301","d":"상패동","y":37.909285,"x":127.04822,"ad":"경기도 동두천시 상패동 38-2","c":"표지판형","ty":"표지미상","bit":"","st":"","sy":"","fan":"","lt":false,"wb":false,"wf":"","sm":false,"ac":"","af":"","r":0,"dead":false},{"n":"동두천노인전문요양센터","a":"16410","i":"215000300","d":"상패동","y":37.909275,"x":127.048445,"ad":"경기도 동두천시 상패동 40-20","c":"표지판형","ty":"표지(구)","bit":"","st":"","sy":"","fan":"","lt":false,"wb":false,"wf":"","sm":false,"ac":"","af":"","r":18,"dead":false},{"n":"새은혜아파트","a":"16411","i":"215000305","d":"상패동","y":37.911217,"x":127.049819,"ad":"경기도 동두천시 상패동 30-16","c":"표지판형","ty":"표지(구)","bit":"2026","st":"","sy":"","fan":"","lt":false,"wb":false,"wf":"","sm":false,"ac":"","af":"","r":18,"dead":false},{"n":"삼패3통.남산모루","a":"16412","i":"215000304","d":"상패동","y":37.916002,"x":127.053382,"ad":"경기도 동두천시 상패동 10-4","c":"미확인","ty":"","bit":"","st":"","sy":"","fan":"","lt":false,"wb":false,"wf":"","sm":false,"ac":"","af":"","r":0,"dead":false},{"n":"동남아파트","a":"16413","i":"215000303","d":"상패동","y":37.916099,"x":127.05357,"ad":"경기도 동두천시 상패동 11-14","c":"개방형","ty":"쉘터(구)","bit":"","st":"","sy":"","fan":"","lt":false,"wb":false,"wf":"","sm":false,"ac":"","af":"","r":138,"dead":false},{"n":"사당골입구","a":"16414","i":"215000312","d":"불현동","y":37.889883,"x":127.060788,"ad":"경기도 동두천시 지행동 369-1","c":"미확인","ty":"","bit":"","st":"","sy":"","fan":"","lt":false,"wb":false,"wf":"","sm":false,"ac":"","af":"","r":0,"dead":false},{"n":"동두천터미널.롯데마트","a":"16415","i":"215000317","d":"송내동","y":37.881406,"x":127.052847,"ad":"경기도 동두천시 송내동 698-22","c":"표지판형","ty":"표지(구)_기둥","bit":"","st":"","sy":"","fan":"","lt":false,"wb":false,"wf":"","sm":false,"ac":"","af":"","r":1,"dead":false},{"n":"생연주공.보산초교","a":"16416","i":"215000314","d":"생연1동","y":37.913294,"x":127.063716,"ad":"경기도 동두천시 생연동 528","c":"표지판형","ty":"표지(신)","bit":"","st":"","sy":"","fan":"","lt":false,"wb":false,"wf":"","sm":false,"ac":"","af":"","r":177,"dead":false},{"n":"동원베네스트","a":"16417","i":"215000311","d":"송내동","y":37.888449,"x":127.058518,"ad":"경기도 동두천시 지행동 384","c":"개방형","ty":"협소보도형","bit":"","st":"","sy":"","fan":"","lt":false,"wb":false,"wf":"","sm":false,"ac":"","af":"","r":165,"dead":false},{"n":"동두천터미널.롯데마트","a":"16419","i":"215000310","d":"송내동","y":37.881189,"x":127.052867,"ad":"경기도 동두천시 송내동 698-22","c":"개방형","ty":"쉘터","bit":"","st":"온열의자","sy":"2023","fan":"","lt":false,"wb":false,"wf":"","sm":false,"ac":"","af":"","r":589,"dead":false},{"n":"사당골입구","a":"16420","i":"215000316","d":"불현동","y":37.890017,"x":127.060607,"ad":"경기도 동두천시 지행동 344-4","c":"미확인","ty":"","bit":"","st":"","sy":"","fan":"","lt":false,"wb":false,"wf":"","sm":false,"ac":"","af":"","r":0,"dead":false},{"n":"동원베네스트","a":"16421","i":"215000315","d":"송내동","y":37.888617,"x":127.058546,"ad":"경기도 동두천시 지행동 354","c":"개방형","ty":"협소보도형","bit":"","st":"","sy":"","fan":"","lt":false,"wb":false,"wf":"","sm":false,"ac":"","af":"","r":540,"dead":false},{"n":"불현동행정복지센터","a":"16422","i":"215000319","d":"불현동","y":37.899128,"x":127.062401,"ad":"경기도 동두천시 생연동 307-13","c":"개방형","ty":"쉘터","bit":"2024","st":"","sy":"","fan":"","lt":false,"wb":false,"wf":"","sm":false,"ac":"","af":"","r":448,"dead":false},{"n":"송내아이파크","a":"16423","i":"215000333","d":"송내동","y":37.885405,"x":127.050013,"ad":"경기도 동두천시 송내동 698-3","c":"미확인","ty":"","bit":"","st":"","sy":"","fan":"","lt":false,"wb":false,"wf":"","sm":false,"ac":"","af":"","r":0,"dead":false},{"n":"생연1동주민센터","a":"16424","i":"215000329","d":"생연1동","y":37.90705,"x":127.064889,"ad":"경기도 동두천시 생연동 222-42","c":"개방형","ty":"협소보도형","bit":"2025","st":"","sy":"","fan":"","lt":false,"wb":false,"wf":"","sm":false,"ac":"","af":"","r":78,"dead":false},{"n":"동두천시청","a":"16425","i":"215000326","d":"생연1동","y":37.903093,"x":127.061055,"ad":"경기도 동두천시 생연동 437-4","c":"미확인","ty":"","bit":"2026","st":"","sy":"","fan":"","lt":false,"wb":false,"wf":"","sm":false,"ac":"","af":"","r":3,"dead":false},{"n":"불현동행정복지센터","a":"16426","i":"215000318","d":"불현동","y":37.898939,"x":127.062254,"ad":"경기도 동두천시 생연동 396-2","c":"개방형","ty":"쉘터","bit":"2024","st":"","sy":"","fan":"","lt":false,"wb":false,"wf":"","sm":false,"ac":"","af":"","r":55,"dead":false},{"n":"월드메르디앙","a":"16427","i":"215000328","d":"생연1동","y":37.904335,"x":127.063332,"ad":"경기도 동두천시 생연동 227-3","c":"표지판형","ty":"표지(구)","bit":"","st":"","sy":"","fan":"","lt":false,"wb":false,"wf":"","sm":false,"ac":"","af":"","r":4,"dead":false},{"n":"동두천터미널","a":"16429","i":"215000378","d":"송내동","y":37.880614,"x":127.052125,"ad":"경기도 동두천시 송내동 551","c":"표지판형","ty":"표지미상","bit":"","st":"","sy":"","fan":"","lt":false,"wb":false,"wf":"","sm":false,"ac":"","af":"","r":0,"dead":false},{"n":"동두천터미널","a":"16430","i":"215000424","d":"송내동","y":37.880485,"x":127.052209,"ad":"경기도 동두천시 송내동 551","c":"표지판형","ty":"표지미상","bit":"","st":"","sy":"","fan":"","lt":false,"wb":false,"wf":"","sm":false,"ac":"","af":"","r":0,"dead":false},{"n":"신한대학교","a":"16433","i":"215000344","d":"상패동","y":37.904668,"x":127.033828,"ad":"경기도 동두천시 상패동 233-1","c":"미확인","ty":"","bit":"","st":"","sy":"","fan":"","lt":false,"wb":false,"wf":"","sm":false,"ac":"","af":"","r":0,"dead":false},{"n":"탑동가든앞","a":"16434","i":"215000345","d":"불현동","y":37.892295,"x":127.132557,"ad":"경기도 동두천시 탑동동 90-10","c":"표지판형","ty":"표지(신)","bit":"","st":"","sy":"","fan":"","lt":false,"wb":false,"wf":"","sm":false,"ac":"","af":"","r":16,"dead":false},{"n":"탑동가든앞","a":"16435","i":"215000346","d":"불현동","y":37.89217,"x":127.132351,"ad":"경기도 동두천시 탑동동 90-5","c":"표지판형","ty":"표지(구)","bit":"","st":"","sy":"","fan":"","lt":false,"wb":false,"wf":"","sm":false,"ac":"","af":"","r":0,"dead":false},{"n":"동두천중앙역3번출구","a":"16436","i":"215000362","d":"중앙동","y":37.902387,"x":127.056908,"ad":"경기도 동두천시 생연동 444-31","c":"밀폐형","ty":"방풍형","bit":"2024","st":"","sy":"","fan":"","lt":true,"wb":false,"wf":"","sm":false,"ac":"","af":"","r":858,"dead":false},{"n":"장림교앞","a":"16437","i":"215000376","d":"불현동","y":37.882424,"x":127.09456,"ad":"경기도 동두천시 탑동동 871-1","c":"표지판형","ty":"표지(구)","bit":"","st":"","sy":"","fan":"","lt":false,"wb":false,"wf":"","sm":false,"ac":"","af":"","r":75,"dead":false},{"n":"장림교앞","a":"16438","i":"215000377","d":"불현동","y":37.882366,"x":127.094447,"ad":"경기도 동두천시 탑동동 875-4","c":"표지판형","ty":"표지(구)","bit":"","st":"","sy":"","fan":"","lt":false,"wb":false,"wf":"","sm":false,"ac":"","af":"","r":1,"dead":false},{"n":"생연주공.보산초교","a":"16439","i":"215000369","d":"생연1동","y":37.913321,"x":127.06358,"ad":"경기도 동두천시 생연동 528","c":"개방형","ty":"쉘터","bit":"","st":"","sy":"","fan":"","lt":false,"wb":false,"wf":"","sm":false,"ac":"","af":"","r":596,"dead":false},{"n":"무명교앞","a":"16440","i":"215000375","d":"불현동","y":37.877277,"x":127.105481,"ad":"경기도 동두천시 탑동동 605-4","c":"표지판형","ty":"표지(신)_철","bit":"","st":"","sy":"","fan":"","lt":false,"wb":false,"wf":"","sm":false,"ac":"","af":"","r":0,"dead":false},{"n":"상패동6통마을회관","a":"16441","i":"215000425","d":"상패동","y":37.912636,"x":127.051745,"ad":"경기도 동두천시 상패동 25-1","c":"개방형","ty":"쉘터(구)","bit":"","st":"","sy":"","fan":"","lt":false,"wb":false,"wf":"","sm":false,"ac":"","af":"","r":44,"dead":false},{"n":"상패동6통마을회관","a":"16442","i":"215000426","d":"상패동","y":37.912812,"x":127.051764,"ad":"경기도 동두천시 상패동 24-34","c":"개방형","ty":"쉘터(구)","bit":"","st":"","sy":"","fan":"","lt":false,"wb":false,"wf":"","sm":false,"ac":"","af":"","r":0,"dead":false},{"n":"두레수도원","a":"16443","i":"215000232","d":"불현동","y":37.911286,"x":127.115999,"ad":"경기도 동두천시 광암동 산 4-1","c":"표지판형","ty":"표지(신)_철","bit":"","st":"","sy":"","fan":"","lt":false,"wb":false,"wf":"","sm":false,"ac":"","af":"","r":340,"dead":false},{"n":"아차노리종점","a":"16444","i":"215000354","d":"송내동","y":37.877891,"x":127.066475,"ad":"경기도 동두천시 송내동 213-2","c":"표지판형","ty":"표지(구)","bit":"","st":"","sy":"","fan":"","lt":false,"wb":false,"wf":"","sm":false,"ac":"","af":"","r":5,"dead":false},{"n":"아차노리중간마을","a":"16445","i":"215000361","d":"불현동","y":37.878543,"x":127.063193,"ad":"경기도 동두천시 송내동 397","c":"표지판형","ty":"표지(구)_철","bit":"","st":"","sy":"","fan":"","lt":false,"wb":false,"wf":"","sm":false,"ac":"","af":"","r":17,"dead":false},{"n":"아차노리중간마을","a":"16446","i":"215000368","d":"불현동","y":37.878441,"x":127.063227,"ad":"경기도 동두천시 송내동 226-2","c":"표지판형","ty":"표지(구)_철","bit":"","st":"","sy":"","fan":"","lt":false,"wb":false,"wf":"","sm":false,"ac":"","af":"","r":0,"dead":false},{"n":"종합운동장","a":"16447","i":"215000428","d":"불현동","y":37.89949,"x":127.070064,"ad":"경기도 동두천시 생연동 70","c":"표지판형","ty":"표지미상","bit":"","st":"","sy":"","fan":"","lt":false,"wb":false,"wf":"","sm":false,"ac":"","af":"","r":0,"dead":false},{"n":"종합운동장","a":"16448","i":"215000429","d":"불현동","y":37.899469,"x":127.069796,"ad":"경기도 동두천시 생연동 70","c":"표지판형","ty":"표지미상","bit":"","st":"","sy":"","fan":"","lt":false,"wb":false,"wf":"","sm":false,"ac":"","af":"","r":0,"dead":false},{"n":"파크타운입구","a":"16449","i":"215000430","d":"보산동","y":37.917446,"x":127.063275,"ad":"경기도 동두천시 보산동 304-37","c":"표지판형","ty":"표지미상","bit":"","st":"","sy":"","fan":"","lt":false,"wb":false,"wf":"","sm":false,"ac":"","af":"","r":0,"dead":false},{"n":"파크타운입구","a":"16450","i":"215000431","d":"보산동","y":37.91752,"x":127.063163,"ad":"경기도 동두천시 보산동 308-3","c":"개방형","ty":"쉘터","bit":"","st":"","sy":"","fan":"","lt":false,"wb":false,"wf":"","sm":false,"ac":"","af":"","r":71,"dead":false},{"n":"보산동행정복지센터","a":"16451","i":"215000432","d":"보산동","y":37.917896,"x":127.061242,"ad":"경기도 동두천시 보산동 314-9","c":"표지판형","ty":"표지(구)","bit":"","st":"","sy":"","fan":"","lt":false,"wb":false,"wf":"","sm":false,"ac":"","af":"","r":58,"dead":false},{"n":"보산동행정복지센터","a":"16452","i":"215000433","d":"보산동","y":37.918073,"x":127.061625,"ad":"경기도 동두천시 보산동 314-9","c":"표지판형","ty":"표지미상","bit":"","st":"","sy":"","fan":"","lt":false,"wb":false,"wf":"","sm":false,"ac":"","af":"","r":0,"dead":false},{"n":"어린이박물관","a":"16453","i":"215000434","d":"소요동","y":37.946305,"x":127.063355,"ad":"경기도 동두천시 상봉암동 115-83","c":"표지판형","ty":"표지미상","bit":"","st":"","sy":"","fan":"","lt":false,"wb":false,"wf":"","sm":false,"ac":"","af":"","r":0,"dead":false},{"n":"어린이박물관","a":"16454","i":"215000435","d":"소요동","y":37.94655,"x":127.064148,"ad":"경기도 동두천시 상봉암동 12-4","c":"표지판형","ty":"표지미상","bit":"","st":"","sy":"","fan":"","lt":false,"wb":false,"wf":"","sm":false,"ac":"","af":"","r":0,"dead":false},{"n":"생연2동행정복지센터","a":"16455","i":"215000160","d":"생연2동","y":37.901247,"x":127.050295,"ad":"경기도 동두천시 생연동 814-14","c":"표지판형","ty":"표지미상","bit":"","st":"","sy":"","fan":"","lt":false,"wb":false,"wf":"","sm":false,"ac":"","af":"","r":0,"dead":false},{"n":"생연2동행정복지센터","a":"16456","i":"215000159","d":"생연2동","y":37.901116,"x":127.050335,"ad":"경기도 동두천시 생연동 814-5","c":"표지판형","ty":"표지(구)_기둥","bit":"","st":"","sy":"","fan":"","lt":false,"wb":false,"wf":"","sm":false,"ac":"","af":"","r":9,"dead":false},{"n":"걸산동마을입구","a":"16457","i":"215000129","d":"불현동","y":37.92176,"x":127.097112,"ad":"경기도 동두천시 걸산동 190-1","c":"표지판형","ty":"표지","bit":"","st":"","sy":"","fan":"","lt":false,"wb":false,"wf":"","sm":false,"ac":"","af":"","r":0,"dead":false},{"n":"걸산동마을입구","a":"16458","i":"215000138","d":"불현동","y":37.92183,"x":127.097152,"ad":"경기도 동두천시 걸산동 190-2","c":"표지판형","ty":"표지","bit":"","st":"","sy":"","fan":"","lt":false,"wb":false,"wf":"","sm":false,"ac":"","af":"","r":5,"dead":false},{"n":"걸산동마을회관","a":"16459","i":"215000151","d":"불현동","y":37.925451,"x":127.104916,"ad":"경기도 동두천시 걸산동 73-2","c":"개방형","ty":"쉘터","bit":"","st":"","sy":"","fan":"","lt":false,"wb":false,"wf":"","sm":false,"ac":"","af":"","r":10,"dead":false},{"n":"상패초교","a":"39875","i":"235000838","d":"상패동","y":37.89855,"x":127.027047,"ad":"경기도 동두천시 상패동 748-5","c":"미확인","ty":"","bit":"","st":"","sy":"","fan":"","lt":false,"wb":false,"wf":"","sm":false,"ac":"","af":"","r":275,"dead":false},{"n":"상패초교","a":"53034","i":"235000963","d":"상패동","y":37.898576,"x":127.027129,"ad":"경기도 동두천시 상패동 734","c":"미확인","ty":"","bit":"","st":"","sy":"","fan":"","lt":false,"wb":false,"wf":"","sm":false,"ac":"","af":"","r":38,"dead":false},{"n":"선업교","a":"53526","i":"235001401","d":"상패동","y":37.895319,"x":127.044155,"ad":"경기도 동두천시 상패동 311-3","c":"미확인","ty":"","bit":"","st":"","sy":"","fan":"","lt":false,"wb":false,"wf":"","sm":false,"ac":"","af":"","r":74,"dead":false},{"n":"무궁화교","a":"53527","i":"235001402","d":"","y":37.895202,"x":127.040496,"ad":"경기도 양주시 은현면 하패리 457-27","c":"미확인","ty":"","bit":"","st":"","sy":"","fan":"","lt":false,"wb":false,"wf":"","sm":false,"ac":"","af":"","r":36,"dead":false},{"n":"무궁화교","a":"53528","i":"235001403","d":"","y":37.895276,"x":127.040494,"ad":"경기도 양주시 은현면 하패리 457-20","c":"미확인","ty":"","bit":"","st":"","sy":"","fan":"","lt":false,"wb":false,"wf":"","sm":false,"ac":"","af":"","r":18,"dead":false},{"n":"풍천장어","a":"53530","i":"235001405","d":"","y":37.89526,"x":127.037635,"ad":"경기도 양주시 은현면 하패리 457-6","c":"미확인","ty":"","bit":"","st":"","sy":"","fan":"","lt":false,"wb":false,"wf":"","sm":false,"ac":"","af":"","r":79,"dead":false},{"n":"선업교","a":"53629","i":"235001308","d":"상패동","y":37.895379,"x":127.044094,"ad":"경기도 동두천시 상패동 311-3","c":"미확인","ty":"","bit":"","st":"","sy":"","fan":"","lt":false,"wb":false,"wf":"","sm":false,"ac":"","af":"","r":43,"dead":false},{"n":"풍천장어","a":"53688","i":"235001404","d":"상패동","y":37.895349,"x":127.037656,"ad":"경기도 동두천시 상패동 332-8","c":"미확인","ty":"","bit":"","st":"","sy":"","fan":"","lt":false,"wb":false,"wf":"","sm":false,"ac":"","af":"","r":11,"dead":false}];
+/* 미리 담아 둔 지도 배경. 현장앱_지도담기.py 가 채워 넣는다 */
+var TILES = {};
+var TILE_Z = [];
+
+var CLS = ["밀폐형","개방형","표지판형","미확인"];
+var on = {}, near = false, myPos = null, cur = null;
+CLS.forEach(function(c){ on[c] = true; });
+
+/* 점검 기록 — 휴대폰 안에 저장된다 */
+function load(){ try { return JSON.parse(localStorage.getItem("ddc_chk") || "{}"); }
+                 catch(e){ return {}; } }
+function save(d){ try { localStorage.setItem("ddc_chk", JSON.stringify(d)); } catch(e){} }
+var CHK = load();
+
+function esc(v){ return String(v == null ? "" : v)
+  .replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;"); }
+
+function dist(a, b){
+  var dy = (a.y - b.lat) * 111000;
+  var dx = (a.x - b.lon) * 111000 * Math.cos(a.y * Math.PI / 180);
+  return Math.sqrt(dy*dy + dx*dx);
+}
+
+function toast(t){
+  var el = document.getElementById("toast");
+  el.textContent = t; el.classList.add("on");
+  clearTimeout(el._t); el._t = setTimeout(function(){ el.classList.remove("on"); }, 2200);
+}
+
+function renderChips(){
+  var box = document.getElementById("chips");
+  box.innerHTML = CLS.map(function(c){
+    var n = STOPS.filter(function(s){ return s.c === c; }).length;
+    return '<button class="chip" data-c="' + c + '" aria-pressed="' + (on[c] ? "true" : "false") +
+           '">' + c + ' ' + n + '</button>';
+  }).join("") +
+  '<button class="chip" data-c="_chk" aria-pressed="false">미점검만</button>';
+  box.onclick = function(e){
+    var b = e.target.closest(".chip"); if (!b) return;
+    var k = b.dataset.c;
+    if (k === "_chk"){ b.setAttribute("aria-pressed",
+      b.getAttribute("aria-pressed") === "true" ? "false" : "true"); }
+    else { on[k] = !on[k]; b.setAttribute("aria-pressed", on[k] ? "true" : "false"); }
+    render();
+  };
+}
+
+function filtered(){
+  var q = document.getElementById("q").value.trim().toLowerCase();
+  var onlyChk = document.querySelector('.chip[data-c="_chk"]');
+  onlyChk = onlyChk && onlyChk.getAttribute("aria-pressed") === "true";
+  var out = STOPS.filter(function(s){
+    if (!on[s.c]) return false;
+    if (onlyChk && CHK[s.a]) return false;
+    if (!q) return true;
+    return (s.n + " " + s.a + " " + s.d + " " + s.ad).toLowerCase().indexOf(q) >= 0;
+  });
+  if (near && myPos){
+    out.forEach(function(s){ s._d = dist(s, myPos); });
+    out.sort(function(a, b){ return a._d - b._d; });
+  } else {
+    out.sort(function(a, b){
+      return (a.d || "").localeCompare(b.d || "") || String(a.a).localeCompare(String(b.a));
+    });
+  }
+  return out;
+}
+
+function facs(s){
+  var f = [];
+  if (s.bit) f.push(["BIT", 1]);
+  if (s.st) f.push(["의자", 1]);
+  if (s.fan) f.push(["송풍기", 1]);
+  if (s.sm) f.push(["스마트", 1]);
+  if (s.lt) f.push(["조명", 1]);
+  if (!f.length) f.push(["시설 없음", 0]);
+  return f;
+}
+
+function render(){
+  var rows = filtered();
+  var box = document.getElementById("list");
+  if (!rows.length){
+    box.innerHTML = '<p class="empty">조건에 맞는 정류소가 없습니다.</p>';
+    return;
+  }
+  box.innerHTML = rows.slice(0, 500).map(function(s){
+    var d = (near && myPos && s._d != null)
+      ? (s._d < 1000 ? Math.round(s._d) + "m" : (s._d/1000).toFixed(1) + "km") : "";
+    return '<div class="item" data-a="' + esc(s.a) + '">' +
+      '<i class="mk ' + s.c + '"></i>' +
+      '<div class="it-b">' +
+        '<div class="it-n">' + esc(s.n) + (CHK[s.a] ? ' ✓' : '') + '</div>' +
+        '<div class="it-s">' + esc(s.a) + ' · ' + esc(s.d) + ' · ' + esc(s.c) + '</div>' +
+        '<div class="it-f">' + facs(s).map(function(x){
+          return '<span class="f' + (x[1] ? '' : ' no') + '">' + esc(x[0]) + '</span>';
+        }).join("") + '</div>' +
+      '</div>' +
+      (d ? '<div class="it-d">' + d + '<em>거리</em></div>'
+         : (s.r ? '<div class="it-d">' + s.r.toLocaleString() + '<em>승차/월</em></div>' : '')) +
+    '</div>';
+  }).join("");
+  box.onclick = function(e){
+    var it = e.target.closest(".item"); if (!it) return;
+    open(STOPS.filter(function(s){ return String(s.a) === it.dataset.a; })[0]);
+  };
+  document.getElementById("s-n").textContent = rows.length;
+  document.getElementById("s-b").textContent = rows.filter(function(s){ return s.bit; }).length;
+  document.getElementById("s-c").textContent = Object.keys(CHK).length;
+  if (view === "map") drawMap();
+}
+
+function open(s){
+  if (!s) return;
+  cur = s;
+  document.getElementById("sh-n").textContent = s.n;
+  var c = CHK[s.a] || {};
+  var rows = [
+    ["관리번호", s.a, 1], ["정류소ID", s.i, 1], ["행정동", s.d, 0],
+    ["형태", s.c, 0], ["정류소유형", s.ty, 0], ["소재지", s.ad, 0],
+  ].filter(function(r){ return r[1]; });
+
+  var fac = [
+    ["BIT", s.bit ? s.bit + "년" : ""],
+    ["냉·온열의자", s.st ? s.st + (s.sy ? " " + s.sy + "년" : "") : ""],
+    ["송풍기", s.fan ? s.fan + "년" : ""],
+    ["조명", s.lt ? "설치" : ""],
+    ["전동방풍막", s.wb ? "설치" : ""],
+    ["WiFi", s.wf ? s.wf + "년" : ""],
+    ["스마트승강장", s.sm ? (s.ac ? s.ac + "년 " + (s.af || "") : "해당") : ""],
+  ];
+  var has = fac.filter(function(f){ return f[1]; });
+  var no = fac.filter(function(f){ return !f[1]; }).map(function(f){ return f[0]; });
+
+  var html = '<table class="d"><tbody>' +
+    rows.map(function(r){
+      return '<tr><th>' + esc(r[0]) + '</th><td class="' + (r[2] ? '' : 'tx') + '">' +
+             esc(r[1]) + '</td></tr>';
+    }).join("") + '</tbody></table>';
+
+  html += '<div class="sec">시설 보유현황</div>';
+  html += has.length
+    ? '<table class="d"><tbody>' + has.map(function(f){
+        return '<tr><th>' + esc(f[0]) + '</th><td class="tx">' + esc(f[1]) + '</td></tr>';
+      }).join("") + '</tbody></table>'
+    : '<p class="note">설치된 시설이 없습니다.</p>';
+  if (no.length) html += '<p class="note">미설치 : ' + esc(no.join(" · ")) + '</p>';
+
+  if (s.r) html += '<p class="note">월평균 승차 ' + s.r.toLocaleString() +
+    '명 (2025.1~2026.6 평균)</p>';
+
+  html += '<div class="sec">현장 점검</div>';
+  html += '<div class="chks">' +
+    [["ok","시설 정상"],["bad","파손·고장"],["clean","청소 필요"],["move","위치 부적정"]]
+    .map(function(x){
+      return '<label><input type="checkbox" data-k="' + x[0] + '"' +
+             (c[x[0]] ? " checked" : "") + '>' + x[1] + '</label>';
+    }).join("") + '</div>';
+  html += '<textarea id="memo" placeholder="특이사항을 적어두세요">' +
+          esc(c.memo || "") + '</textarea>';
+  html += '<div class="saved" id="saved">' +
+          (c.at ? "저장됨 · " + esc(c.at) : "") + '</div>';
+
+  html += '<div class="acts">' +
+    '<a class="go" href="https://map.kakao.com/link/to/' +
+      encodeURIComponent(s.n) + ',' + s.y + ',' + s.x + '" target="_blank">길찾기</a>' +
+    '<button class="chk" id="btn-save">점검 저장</button></div>';
+  html += '<p class="note">점검 기록은 이 휴대폰에만 저장됩니다. ' +
+    '사무실에서 정리하시려면 목록 맨 위 검색칸에 <b>내보내기</b> 라고 입력하세요.</p>';
+
+  document.getElementById("sh-b").innerHTML = html;
+  document.getElementById("sheet").classList.add("on");
+
+  document.getElementById("btn-save").onclick = function(){
+    var rec = { memo: document.getElementById("memo").value.trim(),
+                at: new Date().toLocaleString("ko-KR", { dateStyle:"short", timeStyle:"short" }) };
+    document.querySelectorAll('#sh-b input[type=checkbox]').forEach(function(cb){
+      if (cb.checked) rec[cb.dataset.k] = 1;
+    });
+    var keys = Object.keys(rec).filter(function(k){ return k !== "at"; });
+    if (!keys.some(function(k){ return rec[k]; })) delete CHK[s.a];
+    else CHK[s.a] = rec;
+    save(CHK);
+    document.getElementById("saved").textContent = "저장됨 · " + rec.at;
+    toast("점검 기록을 저장했습니다");
+    render();
+  };
+}
+
+/* 내보내기 — 검색칸에 "내보내기" 입력 */
+function exportCSV(){
+  var keys = Object.keys(CHK);
+  if (!keys.length){ toast("저장된 점검 기록이 없습니다"); return; }
+  var lines = ["정류장번호,정류소명,행정동,시설정상,파손고장,청소필요,위치부적정,특이사항,점검일시"];
+  keys.forEach(function(a){
+    var s = STOPS.filter(function(x){ return String(x.a) === String(a); })[0] || {};
+    var c = CHK[a];
+    lines.push([a, s.n || "", s.d || "", c.ok ? "O" : "", c.bad ? "O" : "",
+                c.clean ? "O" : "", c.move ? "O" : "",
+                (c.memo || "").replace(/[",\n]/g, " "), c.at || ""]
+               .map(function(v){ return '"' + v + '"'; }).join(","));
+  });
+  var blob = new Blob(["\ufeff" + lines.join("\r\n")], { type:"text/csv;charset=utf-8" });
+  var a = document.createElement("a");
+  a.href = URL.createObjectURL(blob);
+  a.download = "정류소점검_" + new Date().toISOString().slice(0,10).replace(/-/g,"") + ".csv";
+  document.body.appendChild(a); a.click();
+  setTimeout(function(){ URL.revokeObjectURL(a.href); a.remove(); }, 1000);
+  toast(keys.length + "건을 내려받았습니다");
+}
+
+document.getElementById("sh-x").onclick = function(){
+  document.getElementById("sheet").classList.remove("on");
+};
+document.getElementById("sheet").onclick = function(e){
+  if (e.target.id === "sheet") this.classList.remove("on");
+};
+document.getElementById("q").oninput = function(){
+  if (this.value.trim() === "내보내기"){ this.value = ""; exportCSV(); return; }
+  render();
+};
+
+/* 내 위치 — 켜두면 이동에 따라 계속 갱신된다 */
+var watchId = null;
+
+function stopGPS(){
+  if (watchId != null){ navigator.geolocation.clearWatch(watchId); watchId = null; }
+  near = false; myPos = null;
+  var btn = document.getElementById("gps");
+  btn.classList.remove("on"); btn.textContent = "내 위치";
+  render(); if (view === "map") drawMap();
+}
+
+document.getElementById("gps").onclick = function(){
+  var btn = this;
+  if (watchId != null){ stopGPS(); toast("위치 표시를 껐습니다"); return; }
+  if (!navigator.geolocation){ toast("이 기기에서는 위치를 쓸 수 없습니다"); return; }
+
+  btn.textContent = "찾는 중";
+  var first = true;
+  watchId = navigator.geolocation.watchPosition(function(p){
+    myPos = { lat: p.coords.latitude, lon: p.coords.longitude,
+              acc: p.coords.accuracy || 0 };
+    near = true;
+    btn.classList.add("on");
+    btn.textContent = view === "map" ? "위치 켬" : "가까운 순";
+    if (first){
+      first = false;
+      /* 지도에서는 내 위치로 이동한다 */
+      if (view === "map"){ mapC = { y: myPos.lat, x: myPos.lon }; mapZ = Math.max(mapZ, 6); }
+      toast("내 위치를 찾았습니다 (오차 약 " + Math.round(myPos.acc) + "m)");
+    }
+    render();
+    if (view === "map") drawMap();
+  }, function(err){
+    btn.textContent = "내 위치";
+    if (watchId != null){ navigator.geolocation.clearWatch(watchId); watchId = null; }
+    toast(err && err.code === 1
+      ? "위치 권한이 꺼져 있습니다. 설정에서 허용해 주세요"
+      : "위치를 확인하지 못했습니다. 실외에서 다시 시도해 주세요");
+  }, { enableHighAccuracy: true, timeout: 15000, maximumAge: 5000 });
+};
+
+
+/* ══ 지도 ══════════════════════════════════════════════
+   지도 배경(타일)은 인터넷이 필요하므로 쓰지 않는다.
+   좌표를 직접 그려 정류소와 내 위치를 표시한다. */
+var view = "list", cv, ctx, mapC = null, mapZ = 1, sel = null;
+var DRAW = { pad: 26 };
+
+function bounds(rows){
+  var la = rows.map(function(s){ return s.y; });
+  var lo = rows.map(function(s){ return s.x; });
+  if (myPos){ la.push(myPos.lat); lo.push(myPos.lon); }
+  if (!la.length) return null;
+  return { y0: Math.min.apply(null, la), y1: Math.max.apply(null, la),
+           x0: Math.min.apply(null, lo), x1: Math.max.apply(null, lo) };
+}
+
+function drawMap(){
+  if (view !== "map" || !cv) return;
+  var rows = filtered();
+  var w = cv.clientWidth, h = cv.clientHeight;
+  var dpr = window.devicePixelRatio || 1;
+  cv.width = w * dpr; cv.height = h * dpr;
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  ctx.clearRect(0, 0, w, h);
+
+  var b = bounds(rows);
+  if (!b){ return; }
+  if (!mapC) mapC = { y: (b.y0 + b.y1) / 2, x: (b.x0 + b.x1) / 2 };
+
+  ctx.fillStyle = "#eef1f4"; ctx.fillRect(0, 0, w, h);
+
+  /* 위경도 → 화면. 가로세로 비율을 위도로 보정한다 */
+  var kx = Math.cos(mapC.y * Math.PI / 180);
+  var spanY = Math.max(b.y1 - b.y0, 0.004) * 1.12 / mapZ;
+  var spanX = Math.max((b.x1 - b.x0) * kx, 0.004) * 1.12 / mapZ;
+  var sc = Math.min((h - DRAW.pad * 2) / spanY, (w - DRAW.pad * 2) / spanX);
+
+  function P(s){
+    return { x: w/2 + ((s.x - mapC.x) * kx) * sc,
+             y: h/2 - (s.y - mapC.y) * sc };
+  }
+
+  /* 지도 배경 — 담아 둔 타일이 있으면 그린다 */
+  drawTiles(w, h, sc, kx);
+
+  /* 축척 막대 */
+  var mPerPx = 111000 / sc;
+  var want = [50,100,200,500,1000,2000,5000].filter(function(m){ return m/mPerPx < w*0.35; }).pop() || 50;
+  var barW = want / mPerPx;
+  ctx.strokeStyle = "#5a5f66"; ctx.lineWidth = 2;
+  var by = 26;
+  ctx.beginPath(); ctx.moveTo(14, by); ctx.lineTo(14 + barW, by);
+  ctx.moveTo(14, by - 4); ctx.lineTo(14, by + 4);
+  ctx.moveTo(14 + barW, by - 4); ctx.lineTo(14 + barW, by + 4); ctx.stroke();
+  ctx.fillStyle = "#4a4f57"; ctx.font = "11px -apple-system,sans-serif";
+  ctx.fillText(want >= 1000 ? (want/1000) + "km" : want + "m", 14, by - 8);
+
+  var COL = { "밀폐형":"#3a5009", "개방형":"#8cb61c", "표지판형":"#8c8c82", "미확인":"#cdcdc2" };
+  var pts = [];
+  rows.forEach(function(s){
+    var p = P(s); p.s = s; pts.push(p);
+    if (p.x < -20 || p.x > w+20 || p.y < -20 || p.y > h+20) return;
+    var isSel = sel && sel.a === s.a;
+    var r = isSel ? 9 : 6;
+    ctx.beginPath();
+    if (s.c === "표지판형"){
+      ctx.save(); ctx.translate(p.x, p.y); ctx.rotate(Math.PI/4);
+      ctx.rect(-r*0.72, -r*0.72, r*1.44, r*1.44); ctx.restore();
+    } else if (s.c === "밀폐형"){
+      ctx.rect(p.x - r*0.8, p.y - r*0.8, r*1.6, r*1.6);
+    } else {
+      ctx.arc(p.x, p.y, r, 0, 6.284);
+    }
+    ctx.fillStyle = COL[s.c] || "#999";
+    ctx.fill();
+    ctx.lineWidth = isSel ? 3 : 1.5;
+    ctx.strokeStyle = isSel ? "#c0392b" : "#fff";
+    ctx.stroke();
+    if (CHK[s.a]){
+      ctx.beginPath(); ctx.arc(p.x + r, p.y - r, 3.5, 0, 6.284);
+      ctx.fillStyle = "#2f7d5c"; ctx.fill();
+      ctx.strokeStyle = "#fff"; ctx.lineWidth = 1; ctx.stroke();
+    }
+  });
+  mapPts = pts;
+
+  /* 내 위치 — 파란 점과 정확도 원 */
+  if (myPos){
+    var mp = P({ y: myPos.lat, x: myPos.lon });
+    if (myPos.acc){
+      var ar = (myPos.acc / 111000) * sc;
+      if (ar > 6){
+        ctx.beginPath(); ctx.arc(mp.x, mp.y, ar, 0, 6.284);
+        ctx.fillStyle = "rgba(26,115,232,.14)"; ctx.fill();
+        ctx.strokeStyle = "rgba(26,115,232,.35)"; ctx.lineWidth = 1; ctx.stroke();
+      }
+    }
+    ctx.beginPath(); ctx.arc(mp.x, mp.y, 9, 0, 6.284);
+    ctx.fillStyle = "#fff"; ctx.fill();
+    ctx.beginPath(); ctx.arc(mp.x, mp.y, 6.5, 0, 6.284);
+    ctx.fillStyle = "#1a73e8"; ctx.fill();
+    ctx.lineWidth = 2; ctx.strokeStyle = "#fff"; ctx.stroke();
+    ctx.fillStyle = "#1a73e8"; ctx.font = "bold 11px -apple-system,sans-serif";
+    ctx.fillText("내 위치", mp.x + 13, mp.y + 4);
+  }
+}
+
+var mapPts = [];
+var tileImgs = {};
+
+function lon2tx(lon, z){ return (lon + 180) / 360 * Math.pow(2, z); }
+function lat2ty(lat, z){
+  var r = lat * Math.PI / 180;
+  return (1 - Math.log(Math.tan(r) + 1/Math.cos(r)) / Math.PI) / 2 * Math.pow(2, z);
+}
+
+function drawTiles(w, h, sc, kx){
+  if (!TILES || !TILE_Z || !TILE_Z.length) return;
+
+  /* 지금 배율에 가장 가까운 타일 단계를 고른다 */
+  var mPerPx = 111000 / sc;
+  var best = TILE_Z[0], bd = 1e9;
+  TILE_Z.forEach(function(z){
+    var tm = 156543.03 * Math.cos(mapC.y * Math.PI / 180) / Math.pow(2, z);
+    var d = Math.abs(Math.log(tm / mPerPx));
+    if (d < bd){ bd = d; best = z; }
+  });
+  var z = best, n = Math.pow(2, z);
+
+  /* 화면 네 귀퉁이의 위경도 */
+  var y0 = mapC.y + (h/2) / sc, y1 = mapC.y - (h/2) / sc;
+  var x0 = mapC.x - (w/2) / (sc * kx), x1 = mapC.x + (w/2) / (sc * kx);
+  /* 타일 번호는 위도가 커질수록 작아진다. 대소를 정리해 쓴다. */
+  var ax = Math.floor(lon2tx(x0, z)), bx = Math.floor(lon2tx(x1, z));
+  var ay = Math.floor(lat2ty(y0, z)), by = Math.floor(lat2ty(y1, z));
+  var tx0 = Math.min(ax, bx), tx1 = Math.max(ax, bx);
+  var ty0 = Math.min(ay, by), ty1 = Math.max(ay, by);
+
+  for (var tx = tx0; tx <= tx1; tx++){
+    for (var ty = ty0; ty <= ty1; ty++){
+      var key = z + "/" + tx + "/" + ty;
+      var src = TILES[key];
+      if (!src) continue;
+      var img = tileImgs[key];
+      if (!img){
+        img = new Image();
+        img.onload = function(){ if (view === "map") drawMap(); };
+        img.src = src;
+        tileImgs[key] = img;
+      }
+      if (!img.complete || !img.naturalWidth) continue;
+      /* 타일 네 귀퉁이를 화면 좌표로 */
+      var lonA = tx / n * 360 - 180, lonB = (tx + 1) / n * 360 - 180;
+      var latA = Math.atan(Math.sinh(Math.PI * (1 - 2 * ty / n))) * 180 / Math.PI;
+      var latB = Math.atan(Math.sinh(Math.PI * (1 - 2 * (ty + 1) / n))) * 180 / Math.PI;
+      var px = w/2 + ((lonA - mapC.x) * kx) * sc;
+      var py = h/2 - (latA - mapC.y) * sc;
+      var pw = ((lonB - lonA) * kx) * sc;
+      var ph = (latA - latB) * sc;
+      ctx.drawImage(img, px, py, pw + 0.6, ph + 0.6);
+    }
+  }
+}
+
+function mapPick(px, py){
+  var best = null, bd = 1e9;
+  mapPts.forEach(function(p){
+    var d = (p.x - px) * (p.x - px) + (p.y - py) * (p.y - py);
+    if (d < bd){ bd = d; best = p; }
+  });
+  if (!best || bd > 40 * 40) return null;
+  return best.s;
+}
+
+function showMapInfo(s){
+  var box = document.getElementById("mapinfo");
+  if (!s){ box.innerHTML = "지도를 눌러 정류소를 선택하세요"; return; }
+  var d = "";
+  if (myPos){
+    var m = dist(s, myPos);
+    d = m < 1000 ? Math.round(m) + "m" : (m/1000).toFixed(1) + "km";
+  }
+  box.innerHTML = '<b>' + esc(s.n) + (CHK[s.a] ? " ✓" : "") + '</b>' +
+    '<em>' + esc(s.a) + ' · ' + esc(s.d) + ' · ' + esc(s.c) +
+    (d ? ' · ' + d : '') + '</em>' +
+    '<button type="button" id="mi-open">상세 보기</button>';
+  document.getElementById("mi-open").onclick = function(){ open(s); };
+}
+
+function setView(v){
+  view = v;
+  document.getElementById("list").hidden = (v !== "list");
+  document.getElementById("mapwrap").hidden = (v !== "map");
+  document.getElementById("t-list").setAttribute("aria-pressed", v === "list" ? "true" : "false");
+  document.getElementById("t-map").setAttribute("aria-pressed", v === "map" ? "true" : "false");
+  var gb = document.getElementById("gps");
+  if (gb && myPos) gb.textContent = (v === "map") ? "위치 켬" : "가까운 순";
+  if (v === "map"){
+    if (!cv){
+      cv = document.getElementById("cv"); ctx = cv.getContext("2d");
+      var drag = null;
+      cv.addEventListener("pointerdown", function(e){
+        drag = { x: e.clientX, y: e.clientY, moved: 0 };
+        cv.setPointerCapture(e.pointerId);
+      });
+      cv.addEventListener("pointermove", function(e){
+        if (!drag) return;
+        var dx = e.clientX - drag.x, dy = e.clientY - drag.y;
+        drag.moved += Math.abs(dx) + Math.abs(dy);
+        drag.x = e.clientX; drag.y = e.clientY;
+        if (!mapC) return;
+        var h = cv.clientHeight;
+        var rows = filtered(), b = bounds(rows);
+        if (!b) return;
+        var kx = Math.cos(mapC.y * Math.PI / 180);
+        var spanY = Math.max(b.y1 - b.y0, 0.004) * 1.12 / mapZ;
+        var sc = (h - DRAW.pad * 2) / spanY;
+        mapC.y += dy / sc; mapC.x -= dx / (sc * kx);
+        drawMap();
+      });
+      cv.addEventListener("pointerup", function(e){
+        if (drag && drag.moved < 8){
+          var r = cv.getBoundingClientRect();
+          var s2 = mapPick(e.clientX - r.left, e.clientY - r.top);
+          sel = s2; showMapInfo(s2); drawMap();
+        }
+        drag = null;
+      });
+      document.getElementById("z-in").onclick = function(){ mapZ = Math.min(24, mapZ * 1.6); drawMap(); };
+      document.getElementById("z-out").onclick = function(){ mapZ = Math.max(1, mapZ / 1.6); drawMap(); };
+    }
+    setTimeout(drawMap, 30);
+    if (!window.__mapHi){
+      window.__mapHi = 1;
+      setTimeout(function(){
+        toast(TILE_Z && TILE_Z.length
+          ? "오른쪽 아래 [내 위치] 를 누르면 현재 위치가 표시됩니다"
+          : "지도 배경이 담겨 있지 않습니다 · 정류소 위치만 표시됩니다");
+      }, 500);
+    }
+  }
+}
+
+document.getElementById("t-list").onclick = function(){ setView("list"); };
+document.getElementById("t-map").onclick = function(){ setView("map"); };
+window.addEventListener("resize", function(){ if (view === "map") drawMap(); });
+
+renderChips();
+render();
+
+if ("serviceWorker" in navigator){
+  navigator.serviceWorker.register("sw.js").catch(function(){});
+}
+</script>
+</body>
+</html>
