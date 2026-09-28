@@ -135,7 +135,7 @@ textarea{width:100%;min-height:70px;padding:10px;font-size:14px;font-family:inhe
 
 <div class="top">
   <h1>동두천 버스정류소 현장조사</h1>
-  <p>교통행정과 · 인터넷 없이 쓸 수 있습니다 · v1.10 (2026.09.22)</p>
+  <p>교통행정과 · 인터넷 없이 쓸 수 있습니다 · v1.11 (2026.09.28)</p>
   <div class="sum">
     <span><b id="s-n">0</b>정류소</span>
     <span><b id="s-b">0</b>BIT</span>
@@ -551,42 +551,56 @@ function lat2ty(lat, z){
   return (1 - Math.log(Math.tan(r) + 1/Math.cos(r)) / Math.PI) / 2 * Math.pow(2, z);
 }
 
+/* 지도 배경
+   ① 파일에 담아 둔 타일이 있으면 그것을 쓰고
+   ② 없으면 인터넷에서 받아 온다 (한 번 본 곳은 저장되어 통신 없이도 보임)
+   통신이 없고 담아 둔 것도 없으면 배경 없이 정류소만 그린다. */
+var TILE_SRC = "https://tile.openstreetmap.org/{z}/{x}/{y}.png";
+var tileFail = 0;
+
 function drawTiles(w, h, sc, kx){
-  if (!TILES || !TILE_Z || !TILE_Z.length) return;
-
-  /* 지금 배율에 가장 가까운 타일 단계를 고른다 */
   var mPerPx = 111000 / sc;
-  var best = TILE_Z[0], bd = 1e9;
-  TILE_Z.forEach(function(z){
-    var tm = 156543.03 * Math.cos(mapC.y * Math.PI / 180) / Math.pow(2, z);
-    var d = Math.abs(Math.log(tm / mPerPx));
-    if (d < bd){ bd = d; best = z; }
-  });
-  var z = best, n = Math.pow(2, z);
 
-  /* 화면 네 귀퉁이의 위경도 */
+  /* 화면 배율에 맞는 타일 단계 */
+  var z = Math.round(Math.log2(156543.03 * Math.cos(mapC.y * Math.PI / 180) / mPerPx));
+  z = Math.max(10, Math.min(18, z));
+
+  /* 파일에 담아 둔 단계가 있으면 그중 가까운 것을 우선 */
+  if (TILE_Z && TILE_Z.length){
+    var best = TILE_Z[0], bd = 1e9;
+    TILE_Z.forEach(function(v){ var d = Math.abs(v - z); if (d < bd){ bd = d; best = v; } });
+    if (bd <= 1) z = best;
+  }
+  var n = Math.pow(2, z);
+
   var y0 = mapC.y + (h/2) / sc, y1 = mapC.y - (h/2) / sc;
   var x0 = mapC.x - (w/2) / (sc * kx), x1 = mapC.x + (w/2) / (sc * kx);
-  /* 타일 번호는 위도가 커질수록 작아진다. 대소를 정리해 쓴다. */
   var ax = Math.floor(lon2tx(x0, z)), bx = Math.floor(lon2tx(x1, z));
   var ay = Math.floor(lat2ty(y0, z)), by = Math.floor(lat2ty(y1, z));
   var tx0 = Math.min(ax, bx), tx1 = Math.max(ax, bx);
   var ty0 = Math.min(ay, by), ty1 = Math.max(ay, by);
+  /* 화면이 넓어도 한 번에 너무 많이 받지 않게 막는다 */
+  if ((tx1 - tx0 + 1) * (ty1 - ty0 + 1) > 60) return;
 
   for (var tx = tx0; tx <= tx1; tx++){
     for (var ty = ty0; ty <= ty1; ty++){
+      if (tx < 0 || ty < 0 || tx >= n || ty >= n) continue;
       var key = z + "/" + tx + "/" + ty;
-      var src = TILES[key];
-      if (!src) continue;
       var img = tileImgs[key];
       if (!img){
+        var src = (TILES && TILES[key]) ? TILES[key]
+          : (tileFail < 8
+              ? TILE_SRC.replace("{z}", z).replace("{x}", tx).replace("{y}", ty)
+              : null);
+        if (!src) continue;
         img = new Image();
-        img.onload = function(){ if (view === "map") drawMap(); };
+        img.onload = function(){ tileFail = 0; if (view === "map") drawMap(); };
+        img.onerror = function(){ tileFail++; };
         img.src = src;
         tileImgs[key] = img;
       }
       if (!img.complete || !img.naturalWidth) continue;
-      /* 타일 네 귀퉁이를 화면 좌표로 */
+
       var lonA = tx / n * 360 - 180, lonB = (tx + 1) / n * 360 - 180;
       var latA = Math.atan(Math.sinh(Math.PI * (1 - 2 * ty / n))) * 180 / Math.PI;
       var latB = Math.atan(Math.sinh(Math.PI * (1 - 2 * (ty + 1) / n))) * 180 / Math.PI;
@@ -635,17 +649,63 @@ function setView(v){
   if (v === "map"){
     if (!cv){
       cv = document.getElementById("cv"); ctx = cv.getContext("2d");
-      var drag = null;
+      /* 손가락 하나 = 밀어서 이동, 둘 = 오므려 확대·축소 */
+      var pts = {}, drag = null, pinch = null;
+
+      function spanOf(){
+        var k = Object.keys(pts);
+        if (k.length < 2) return null;
+        var a = pts[k[0]], b = pts[k[1]];
+        return { d: Math.hypot(a.x - b.x, a.y - b.y),
+                 cx: (a.x + b.x) / 2, cy: (a.y + b.y) / 2 };
+      }
+      /* 화면의 한 점을 기준으로 확대해야 손끝이 밀리지 않는다 */
+      function zoomAt(mult, cx, cy){
+        var r = cv.getBoundingClientRect();
+        var w = cv.clientWidth, h = cv.clientHeight;
+        var rows = filtered(), b = bounds(rows);
+        if (!b || !mapC) return;
+        var kx = Math.cos(mapC.y * Math.PI / 180);
+        var spanY = Math.max(b.y1 - b.y0, 0.004) * 1.12 / mapZ;
+        var spanX = Math.max((b.x1 - b.x0) * kx, 0.004) * 1.12 / mapZ;
+        var sc = Math.min((h - DRAW.pad * 2) / spanY, (w - DRAW.pad * 2) / spanX);
+        var dx = (cx - r.left) - w / 2, dy = (cy - r.top) - h / 2;
+        /* 기준점의 위경도 */
+        var ly = mapC.y - dy / sc, lx = mapC.x + dx / (sc * kx);
+        mapZ = Math.max(1, Math.min(160, mapZ * mult));
+        /* 배율이 바뀐 뒤에도 기준점이 같은 자리에 오도록 중심을 옮긴다 */
+        var spanY2 = Math.max(b.y1 - b.y0, 0.004) * 1.12 / mapZ;
+        var spanX2 = Math.max((b.x1 - b.x0) * kx, 0.004) * 1.12 / mapZ;
+        var sc2 = Math.min((h - DRAW.pad * 2) / spanY2, (w - DRAW.pad * 2) / spanX2);
+        mapC.y = ly + dy / sc2;
+        mapC.x = lx - dx / (sc2 * kx);
+        drawMap();
+      }
+
       cv.addEventListener("pointerdown", function(e){
-        drag = { x: e.clientX, y: e.clientY, moved: 0 };
-        cv.setPointerCapture(e.pointerId);
+        try { cv.setPointerCapture(e.pointerId); } catch(err){}
+        pts[e.pointerId] = { x: e.clientX, y: e.clientY };
+        var sp = spanOf();
+        if (sp){ pinch = sp; drag = null; }
+        else drag = { x: e.clientX, y: e.clientY, moved: 0 };
       });
+
       cv.addEventListener("pointermove", function(e){
-        if (!drag) return;
+        if (!pts[e.pointerId]) return;
+        pts[e.pointerId] = { x: e.clientX, y: e.clientY };
+
+        var sp = spanOf();
+        if (sp && pinch){
+          if (pinch.d > 10 && Math.abs(sp.d - pinch.d) > 1){
+            zoomAt(sp.d / pinch.d, sp.cx, sp.cy);
+          }
+          pinch = sp;
+          return;
+        }
+        if (!drag || !mapC) return;
         var dx = e.clientX - drag.x, dy = e.clientY - drag.y;
         drag.moved += Math.abs(dx) + Math.abs(dy);
         drag.x = e.clientX; drag.y = e.clientY;
-        if (!mapC) return;
         var h = cv.clientHeight;
         var rows = filtered(), b = bounds(rows);
         if (!b) return;
@@ -655,16 +715,44 @@ function setView(v){
         mapC.y += dy / sc; mapC.x -= dx / (sc * kx);
         drawMap();
       });
+
+      function endPt(e){
+        delete pts[e.pointerId];
+        if (Object.keys(pts).length < 2) pinch = null;
+      }
+      cv.addEventListener("pointercancel", endPt);
       cv.addEventListener("pointerup", function(e){
-        if (drag && drag.moved < 8){
+        var was = drag;
+        endPt(e);
+        if (Object.keys(pts).length) return;
+        if (was && was.moved < 8){
+          var now = Date.now();
+          if (cv._tap && now - cv._tap < 320){
+            /* 두 번 두드리면 확대 */
+            cv._tap = 0;
+            zoomAt(1.8, e.clientX, e.clientY);
+            return;
+          }
+          cv._tap = now;
           var r = cv.getBoundingClientRect();
           var s2 = mapPick(e.clientX - r.left, e.clientY - r.top);
           sel = s2; showMapInfo(s2); drawMap();
         }
         drag = null;
       });
-      document.getElementById("z-in").onclick = function(){ mapZ = Math.min(24, mapZ * 1.6); drawMap(); };
-      document.getElementById("z-out").onclick = function(){ mapZ = Math.max(1, mapZ / 1.6); drawMap(); };
+
+      /* 마우스 휠로도 확대 (PC 에서 볼 때) */
+      cv.addEventListener("wheel", function(e){
+        e.preventDefault();
+        zoomAt(e.deltaY < 0 ? 1.2 : 1 / 1.2, e.clientX, e.clientY);
+      }, { passive: false });
+
+      function btnZoom(m){
+        var r = cv.getBoundingClientRect();
+        zoomAt(m, r.left + cv.clientWidth / 2, r.top + cv.clientHeight / 2);
+      }
+      document.getElementById("z-in").onclick = function(){ btnZoom(1.6); };
+      document.getElementById("z-out").onclick = function(){ btnZoom(1 / 1.6); };
     }
     setTimeout(drawMap, 30);
     if (!window.__mapHi){
