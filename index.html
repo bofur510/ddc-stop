@@ -32,6 +32,27 @@ body{display:flex;flex-direction:column}
 
 /* 검색 */
 .bar{flex:none;background:#fff;border-bottom:1px solid var(--line);padding:8px 12px}
+.qrow{display:flex;gap:7px}
+.qrow input{flex:1}
+.qrow button{flex:none;width:44px;height:40px;border:1px solid var(--line);
+  border-radius:8px;background:#fff;font-size:19px;color:var(--sub);line-height:1}
+.qrow button:active{background:var(--gov-pale)}
+
+/* 점검 기록 관리 */
+.tnote{font-size:13px;color:var(--sub);margin:4px 0 10px;line-height:1.6}
+.tnote b{color:var(--ink);font-size:15px}
+.tnote.dim{font-size:11.5px;color:var(--dim);margin-top:7px}
+.tbtns{display:flex;flex-direction:column;gap:7px}
+.tb{padding:13px;border-radius:8px;border:1.5px solid var(--line);background:#fff;
+  font-family:inherit;font-size:14px;font-weight:600;color:var(--ink);text-align:left}
+.tb:active{transform:scale(.99)}
+.tb.go{background:var(--gov);border-color:var(--gov);color:#fff}
+.tb.ok{border-color:#2f7d5c;color:#2f7d5c}
+.tb.bad{border-color:#c0392b;color:#c0392b}
+.tb.clean{border-color:#d98b1f;color:#b5750f}
+.tb.move{border-color:#7b4fc4;color:#6b41ad}
+.tb.all{border-color:#8c8c82;color:#5a5f57;background:var(--paper)}
+
 .bar input{width:100%;height:40px;padding:0 12px;font-size:15px;font-family:inherit;
   border:1px solid var(--line);border-radius:8px;background:var(--paper)}
 .chips{display:flex;gap:6px;margin-top:8px;overflow-x:auto;padding-bottom:2px;
@@ -179,7 +200,7 @@ textarea{width:100%;min-height:70px;padding:10px;font-size:14px;font-family:inhe
 
 <div class="top">
   <h1>동두천 버스정류소 현장조사</h1>
-  <p>교통행정과 · 인터넷 없이 쓸 수 있습니다 · v1.14 (2026.09.29)</p>
+  <p>교통행정과 · 인터넷 없이 쓸 수 있습니다 · v1.15 (2026.09.29)</p>
   <div class="sum">
     <span><b id="s-n">0</b>정류소</span>
     <span><b id="s-b">0</b>BIT</span>
@@ -189,7 +210,10 @@ textarea{width:100%;min-height:70px;padding:10px;font-size:14px;font-family:inhe
 </div>
 
 <div class="bar">
-  <input id="q" type="search" placeholder="정류소명 · 번호 검색" autocomplete="off">
+  <div class="qrow">
+    <input id="q" type="search" placeholder="정류소명 · 번호 검색" autocomplete="off">
+    <button type="button" id="tools" title="점검 기록 관리">⋯</button>
+  </div>
   <div class="chips" id="chips"></div>
 </div>
 <div class="tabs">
@@ -210,6 +234,11 @@ textarea{width:100%;min-height:70px;padding:10px;font-size:14px;font-family:inhe
 
 <button class="gps" id="gps">내 위치</button>
 <div class="toast" id="toast"></div>
+
+<div class="sheet" id="tsheet"><div class="sh">
+  <div class="sh-h"><h2>점검 기록 관리</h2><button id="ts-x">✕</button></div>
+  <div class="sh-b" id="ts-b"></div>
+</div></div>
 
 <div class="sheet" id="sheet"><div class="sh">
   <div class="sh-h"><h2 id="sh-n"></h2><button id="sh-x">✕</button></div>
@@ -452,7 +481,72 @@ function open(s){
   };
 }
 
-/* 내보내기 — 검색칸에 "내보내기" 입력 */
+/* ══ 점검 기록 관리 ══════════════════════════════════
+   내보내기와 일괄 해제를 한곳에 모았다. 지우는 것은 되돌릴 수 없으므로
+   무엇을 몇 건 지우는지 반드시 확인을 받는다. */
+function openTools(){
+  var cnt = { ok:0, bad:0, clean:0, move:0 };
+  Object.keys(CHK).forEach(function(a){
+    var k = chkOf(a);
+    if (k) cnt[k]++;
+  });
+  var total = Object.keys(CHK).length;
+
+  var h = '<p class="tnote">저장된 점검 기록 <b>' + total + '건</b>' +
+          (total ? ' · 남은 정류소 ' + (STOPS.length - total) + '개소' : '') + '</p>';
+
+  if (!total){
+    h += '<p class="tnote dim">아직 점검한 정류소가 없습니다.</p>';
+  } else {
+    h += '<div class="sec">내보내기</div>';
+    h += '<div class="tbtns"><button type="button" class="tb go" data-t="csv">' +
+         '점검 결과 CSV 내려받기</button></div>';
+    h += '<p class="tnote dim">사무실에서 엑셀로 열어 대장 정비에 쓰시면 됩니다.</p>';
+
+    h += '<div class="sec">기록 지우기</div>';
+    h += '<div class="tbtns">';
+    ["bad", "move", "clean", "ok"].forEach(function(k){
+      if (!cnt[k]) return;
+      h += '<button type="button" class="tb ' + k + '" data-t="del" data-k="' + k + '">' +
+           KLABEL[k] + ' ' + cnt[k] + '건 지우기</button>';
+    });
+    h += '<button type="button" class="tb all" data-t="del" data-k="_all">' +
+         '전체 ' + total + '건 지우기</button>';
+    h += '</div>';
+    h += '<p class="tnote dim">지운 기록은 되돌릴 수 없습니다. ' +
+         '필요하시면 먼저 CSV로 내려받아 두세요.</p>';
+  }
+
+  document.getElementById("ts-b").innerHTML = h;
+  document.getElementById("tsheet").classList.add("on");
+
+  document.getElementById("ts-b").onclick = function(e){
+    var b = e.target.closest("button[data-t]");
+    if (!b) return;
+    if (b.dataset.t === "csv"){ exportCSV(); return; }
+
+    var k = b.dataset.k;
+    var targets = Object.keys(CHK).filter(function(a){
+      return k === "_all" || chkOf(a) === k;
+    });
+    if (!targets.length) return;
+
+    var what = k === "_all" ? "전체" : KLABEL[k];
+    if (!confirm(what + " 점검 기록 " + targets.length + "건을 지우시겠습니까?\n\n" +
+                 "되돌릴 수 없습니다.")) return;
+
+    targets.forEach(function(a){ delete CHK[a]; });
+    save(CHK);
+    renderChips();
+    renderMapLegend();
+    render();
+    if (view === "map") drawMap();
+    toast(what + " " + targets.length + "건을 지웠습니다");
+    openTools();
+  };
+}
+
+/* 내보내기 — 도구 창 또는 검색칸에 "내보내기" 입력 */
 function exportCSV(){
   var keys = Object.keys(CHK);
   if (!keys.length){ toast("저장된 점검 기록이 없습니다"); return; }
@@ -473,6 +567,14 @@ function exportCSV(){
   setTimeout(function(){ URL.revokeObjectURL(a.href); a.remove(); }, 1000);
   toast(keys.length + "건을 내려받았습니다");
 }
+
+document.getElementById("tools").onclick = openTools;
+document.getElementById("ts-x").onclick = function(){
+  document.getElementById("tsheet").classList.remove("on");
+};
+document.getElementById("tsheet").onclick = function(e){
+  if (e.target.id === "tsheet") this.classList.remove("on");
+};
 
 document.getElementById("sh-x").onclick = function(){
   document.getElementById("sheet").classList.remove("on");

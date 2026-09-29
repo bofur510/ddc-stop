@@ -1,5 +1,5 @@
 /* 처음 한 번 받아 두면 통신 없이 열린다 */
-var CACHE = "ddc-stop-v1-14";
+var CACHE = "ddc-stop-v1-15";
 var FILES = ["./", "./index.html", "./manifest.json",
              "./icon-192.png", "./icon-512.png", "./icon-512-maskable.png"];
 
