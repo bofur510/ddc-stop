@@ -40,6 +40,33 @@ body{display:flex;flex-direction:column}
 .chip{flex:none;padding:6px 12px;font-size:13px;border:1px solid var(--line);
   border-radius:20px;background:#fff;color:var(--sub);white-space:nowrap}
 .chip[aria-pressed="true"]{background:var(--gov);border-color:var(--gov);color:#fff;font-weight:600}
+.chipdiv{flex:none;width:1px;background:var(--line);margin:2px 3px}
+
+/* 점검 결과 칩 — 결과별 색 */
+.chip.ck{font-weight:600}
+.chip.ck.none{color:#6b7078}
+.chip.ck.ok{color:#2f7d5c}
+.chip.ck.bad{color:#c0392b}
+.chip.ck.clean{color:#b5750f}
+.chip.ck.move{color:#6b41ad}
+.chip.ck[aria-pressed="true"]{color:#fff}
+.chip.ck.none[aria-pressed="true"]{background:#6b7078;border-color:#6b7078}
+.chip.ck.ok[aria-pressed="true"]{background:#2f7d5c;border-color:#2f7d5c}
+.chip.ck.bad[aria-pressed="true"]{background:#c0392b;border-color:#c0392b}
+.chip.ck.clean[aria-pressed="true"]{background:#d98b1f;border-color:#d98b1f}
+.chip.ck.move[aria-pressed="true"]{background:#7b4fc4;border-color:#7b4fc4}
+
+/* 목록 — 점검 결과 표시 */
+.it-n .kb{font-style:normal;font-size:10.5px;font-weight:700;padding:1px 6px;
+  border-radius:3px;margin-left:5px;vertical-align:1px;color:#fff}
+.it-n .kb.ok{background:#2f7d5c}
+.it-n .kb.bad{background:#c0392b}
+.it-n .kb.clean{background:#d98b1f}
+.it-n .kb.move{background:#7b4fc4}
+.mk.k-ok{box-shadow:0 0 0 1px #fff,0 0 0 3px #2f7d5c}
+.mk.k-bad{box-shadow:0 0 0 1px #fff,0 0 0 3px #c0392b}
+.mk.k-clean{box-shadow:0 0 0 1px #fff,0 0 0 3px #d98b1f}
+.mk.k-move{box-shadow:0 0 0 1px #fff,0 0 0 3px #7b4fc4}
 
 /* 화면 전환 */
 .tabs{flex:none;display:flex;background:#fff;border-bottom:1px solid var(--line)}
@@ -124,6 +151,23 @@ textarea{width:100%;min-height:70px;padding:10px;font-size:14px;font-family:inhe
   width:52px;height:52px;border-radius:50%;background:var(--gov);color:#fff;border:0;
   box-shadow:0 3px 12px rgba(0,0,0,.28);font-size:12px;font-weight:700;line-height:1.2}
 .gps.on{background:var(--gov-dk)}
+.maplg{position:absolute;left:10px;top:10px;z-index:5;background:rgba(255,255,255,.95);
+  border-radius:8px;padding:7px 10px;box-shadow:0 1px 6px rgba(0,0,0,.18);
+  display:flex;flex-direction:column;gap:3px;font-size:11px}
+.maplg:empty{display:none}
+.maplg b{font-size:11px;color:var(--sub);margin-bottom:1px}
+.maplg span{display:flex;align-items:center;gap:5px;color:var(--ink)}
+.maplg .lg{width:11px;height:11px;border-radius:50%;border:1.5px solid #fff;flex:none}
+.maplg .lg.ok{background:#2f7d5c}
+.maplg .lg.bad{background:#c0392b}
+.maplg .lg.clean{background:#d98b1f}
+.maplg .lg.move{background:#7b4fc4}
+.sec .kb{font-style:normal;font-size:10.5px;font-weight:700;padding:1px 7px;
+  border-radius:3px;margin-left:6px;color:#fff;letter-spacing:0}
+.sec .kb.ok{background:#2f7d5c}
+.sec .kb.bad{background:#c0392b}
+.sec .kb.clean{background:#d98b1f}
+.sec .kb.move{background:#7b4fc4}
 .toast{position:fixed;left:50%;transform:translateX(-50%);
   bottom:calc(env(safe-area-inset-bottom) + 80px);z-index:60;
   background:rgba(20,23,28,.9);color:#fff;padding:10px 16px;border-radius:20px;
@@ -135,11 +179,12 @@ textarea{width:100%;min-height:70px;padding:10px;font-size:14px;font-family:inhe
 
 <div class="top">
   <h1>동두천 버스정류소 현장조사</h1>
-  <p>교통행정과 · 인터넷 없이 쓸 수 있습니다 · v1.11 (2026.09.28)</p>
+  <p>교통행정과 · 인터넷 없이 쓸 수 있습니다 · v1.14 (2026.09.29)</p>
   <div class="sum">
     <span><b id="s-n">0</b>정류소</span>
     <span><b id="s-b">0</b>BIT</span>
     <span><b id="s-c">0</b>점검완료</span>
+    <span><b id="s-left">0</b>남음</span>
   </div>
 </div>
 
@@ -155,6 +200,7 @@ textarea{width:100%;min-height:70px;padding:10px;font-size:14px;font-family:inhe
 <div class="list" id="list"></div>
 <div class="mapwrap" id="mapwrap" hidden>
   <canvas id="cv"></canvas>
+  <div class="maplg" id="maplg"></div>
   <div class="mapinfo" id="mapinfo">지도를 눌러 정류소를 선택하세요</div>
   <div class="mapzoom">
     <button type="button" id="z-in">+</button>
@@ -180,6 +226,19 @@ var CLS = ["밀폐형","개방형","표지판형","미확인"];
 var on = {}, near = false, myPos = null, cur = null;
 CLS.forEach(function(c){ on[c] = true; });
 
+/* 점검 결과 거르기 — 아무것도 안 누르면 전부 보인다 */
+var kOn = { none:false, ok:false, bad:false, clean:false, move:false };
+
+function chkOf(a){
+  var c = CHK[a];
+  if (!c) return null;
+  if (c.bad) return "bad";
+  if (c.move) return "move";
+  if (c.clean) return "clean";
+  return "ok";
+}
+var KLABEL = { ok:"이상 없음", bad:"파손·고장", clean:"청소 필요", move:"위치 부적정" };
+
 /* 점검 기록 — 휴대폰 안에 저장된다 */
 function load(){ try { return JSON.parse(localStorage.getItem("ddc_chk") || "{}"); }
                  catch(e){ return {}; } }
@@ -203,29 +262,44 @@ function toast(t){
 
 function renderChips(){
   var box = document.getElementById("chips");
+  var cnt = { ok:0, bad:0, clean:0, move:0, none:0 };
+  STOPS.forEach(function(s){
+    var k = chkOf(s.a);
+    cnt[k || "none"]++;
+  });
   box.innerHTML = CLS.map(function(c){
     var n = STOPS.filter(function(s){ return s.c === c; }).length;
     return '<button class="chip" data-c="' + c + '" aria-pressed="' + (on[c] ? "true" : "false") +
            '">' + c + ' ' + n + '</button>';
   }).join("") +
-  '<button class="chip" data-c="_chk" aria-pressed="false">미점검만</button>';
+  '<span class="chipdiv"></span>' +
+  [["none", "미점검", cnt.none], ["bad", "파손·고장", cnt.bad],
+   ["move", "위치 부적정", cnt.move], ["clean", "청소 필요", cnt.clean],
+   ["ok", "이상 없음", cnt.ok]].map(function(x){
+    if (x[0] !== "none" && !x[2]) return "";     /* 아직 없는 결과는 숨긴다 */
+    return '<button class="chip ck ' + x[0] + '" data-k="' + x[0] + '" aria-pressed="' +
+           (kOn[x[0]] ? "true" : "false") + '">' + x[1] + ' ' + x[2] + '</button>';
+  }).join("");
   box.onclick = function(e){
     var b = e.target.closest(".chip"); if (!b) return;
-    var k = b.dataset.c;
-    if (k === "_chk"){ b.setAttribute("aria-pressed",
-      b.getAttribute("aria-pressed") === "true" ? "false" : "true"); }
-    else { on[k] = !on[k]; b.setAttribute("aria-pressed", on[k] ? "true" : "false"); }
+    if (b.dataset.k){                       /* 점검 결과 칩 */
+      kOn[b.dataset.k] = !kOn[b.dataset.k];
+      renderChips();
+    } else {                                /* 형태 칩 */
+      var k = b.dataset.c;
+      on[k] = !on[k];
+      b.setAttribute("aria-pressed", on[k] ? "true" : "false");
+    }
     render();
   };
 }
 
 function filtered(){
   var q = document.getElementById("q").value.trim().toLowerCase();
-  var onlyChk = document.querySelector('.chip[data-c="_chk"]');
-  onlyChk = onlyChk && onlyChk.getAttribute("aria-pressed") === "true";
+  var anyK = Object.keys(kOn).some(function(k){ return kOn[k]; });
   var out = STOPS.filter(function(s){
     if (!on[s.c]) return false;
-    if (onlyChk && CHK[s.a]) return false;
+    if (anyK && !kOn[chkOf(s.a) || "none"]) return false;
     if (!q) return true;
     return (s.n + " " + s.a + " " + s.d + " " + s.ad).toLowerCase().indexOf(q) >= 0;
   });
@@ -262,9 +336,11 @@ function render(){
     var d = (near && myPos && s._d != null)
       ? (s._d < 1000 ? Math.round(s._d) + "m" : (s._d/1000).toFixed(1) + "km") : "";
     return '<div class="item" data-a="' + esc(s.a) + '">' +
-      '<i class="mk ' + s.c + '"></i>' +
+      '<i class="mk ' + s.c + (chkOf(s.a) ? ' k-' + chkOf(s.a) : '') + '"></i>' +
       '<div class="it-b">' +
-        '<div class="it-n">' + esc(s.n) + (CHK[s.a] ? ' ✓' : '') + '</div>' +
+        '<div class="it-n">' + esc(s.n) +
+          (chkOf(s.a) ? ' <em class="kb ' + chkOf(s.a) + '">' +
+            KLABEL[chkOf(s.a)] + '</em>' : '') + '</div>' +
         '<div class="it-s">' + esc(s.a) + ' · ' + esc(s.d) + ' · ' + esc(s.c) + '</div>' +
         '<div class="it-f">' + facs(s).map(function(x){
           return '<span class="f' + (x[1] ? '' : ' no') + '">' + esc(x[0]) + '</span>';
@@ -281,6 +357,9 @@ function render(){
   document.getElementById("s-n").textContent = rows.length;
   document.getElementById("s-b").textContent = rows.filter(function(s){ return s.bit; }).length;
   document.getElementById("s-c").textContent = Object.keys(CHK).length;
+  var left = STOPS.length - Object.keys(CHK).length;
+  var el = document.getElementById("s-left");
+  if (el) el.textContent = left;
   if (view === "map") drawMap();
 }
 
@@ -323,7 +402,9 @@ function open(s){
   if (s.r) html += '<p class="note">월평균 승차 ' + s.r.toLocaleString() +
     '명 (2025.1~2026.6 평균)</p>';
 
-  html += '<div class="sec">현장 점검</div>';
+  var nowK = chkOf(s.a);
+  html += '<div class="sec">현장 점검' +
+    (nowK ? ' <em class="kb ' + nowK + '">' + KLABEL[nowK] + '</em>' : '') + '</div>';
   html += '<div class="chks">' +
     [["ok","시설 정상"],["bad","파손·고장"],["clean","청소 필요"],["move","위치 부적정"]]
     .map(function(x){
@@ -356,6 +437,16 @@ function open(s){
     else CHK[s.a] = rec;
     save(CHK);
     document.getElementById("saved").textContent = "저장됨 · " + rec.at;
+    renderChips();
+    renderMapLegend();
+    /* 상세 머리의 결과 띠도 바로 바꿔 준다 */
+    var sec = [...document.querySelectorAll("#sh-b .sec")].filter(function(e){
+      return e.textContent.indexOf("현장 점검") === 0; })[0];
+    if (sec){
+      var k = chkOf(s.a);
+      sec.innerHTML = "현장 점검" +
+        (k ? ' <em class="kb ' + k + '">' + KLABEL[k] + "</em>" : "");
+    }
     toast("점검 기록을 저장했습니다");
     render();
   };
@@ -494,11 +585,35 @@ function drawMap(){
 
   var COL = { "밀폐형":"#3a5009", "개방형":"#8cb61c", "표지판형":"#8c8c82", "미확인":"#cdcdc2" };
   var pts = [];
+  /* 점검 결과에 따라 표시를 달리한다 — 현장에서 남은 곳이 바로 보이게 */
+  function chkKind(a){
+    var c = CHK[a];
+    if (!c) return null;                       /* 아직 안 봄 */
+    if (c.bad) return "bad";                   /* 파손·고장 */
+    if (c.move) return "move";                 /* 위치 부적정 */
+    if (c.clean) return "clean";               /* 청소 필요 */
+    return "ok";                               /* 이상 없음 */
+  }
+  var CHKCOL = { ok:"#2f7d5c", bad:"#c0392b", clean:"#d98b1f", move:"#7b4fc4" };
+
   rows.forEach(function(s){
     var p = P(s); p.s = s; pts.push(p);
     if (p.x < -20 || p.x > w+20 || p.y < -20 || p.y > h+20) return;
     var isSel = sel && sel.a === s.a;
-    var r = isSel ? 9 : 6;
+    var kind = chkKind(s.a);
+    var r = isSel ? 9 : (kind ? 7 : 6);
+
+    /* 점검한 곳은 뒤에 옅은 테를 둘러 멀리서도 구분되게 */
+    if (kind){
+      ctx.beginPath();
+      ctx.arc(p.x, p.y, r + 4.5, 0, 6.284);
+      ctx.fillStyle = CHKCOL[kind] + "33";
+      ctx.fill();
+      ctx.lineWidth = 1.5;
+      ctx.strokeStyle = CHKCOL[kind];
+      ctx.stroke();
+    }
+
     ctx.beginPath();
     if (s.c === "표지판형"){
       ctx.save(); ctx.translate(p.x, p.y); ctx.rotate(Math.PI/4);
@@ -508,15 +623,20 @@ function drawMap(){
     } else {
       ctx.arc(p.x, p.y, r, 0, 6.284);
     }
-    ctx.fillStyle = COL[s.c] || "#999";
+    /* 점검한 곳은 결과 색으로 칠한다 */
+    ctx.fillStyle = kind ? CHKCOL[kind] : (COL[s.c] || "#999");
     ctx.fill();
     ctx.lineWidth = isSel ? 3 : 1.5;
     ctx.strokeStyle = isSel ? "#c0392b" : "#fff";
     ctx.stroke();
-    if (CHK[s.a]){
-      ctx.beginPath(); ctx.arc(p.x + r, p.y - r, 3.5, 0, 6.284);
-      ctx.fillStyle = "#2f7d5c"; ctx.fill();
-      ctx.strokeStyle = "#fff"; ctx.lineWidth = 1; ctx.stroke();
+
+    /* 파손·위치 부적정은 가운데에 기호를 넣어 한눈에 */
+    if (kind === "bad" || kind === "move"){
+      ctx.fillStyle = "#fff";
+      ctx.font = "bold " + Math.round(r * 1.25) + "px -apple-system,sans-serif";
+      ctx.textAlign = "center";
+      ctx.textBaseline = "middle";
+      ctx.fillText(kind === "bad" ? "!" : "↕", p.x, p.y + 0.5);
     }
   });
   mapPts = pts;
@@ -621,6 +741,20 @@ function mapPick(px, py){
   });
   if (!best || bd > 40 * 40) return null;
   return best.s;
+}
+
+function renderMapLegend(){
+  var box = document.getElementById("maplg");
+  if (!box) return;
+  var have = {};
+  STOPS.forEach(function(s){ var k = chkOf(s.a); if (k) have[k] = (have[k] || 0) + 1; });
+  var ks = Object.keys(have);
+  if (!ks.length){ box.innerHTML = ""; return; }
+  box.innerHTML = '<b>점검 결과</b>' +
+    ["bad", "move", "clean", "ok"].filter(function(k){ return have[k]; })
+      .map(function(k){
+        return '<span><i class="lg ' + k + '"></i>' + KLABEL[k] + ' ' + have[k] + '</span>';
+      }).join("");
 }
 
 function showMapInfo(s){
@@ -754,6 +888,7 @@ function setView(v){
       document.getElementById("z-in").onclick = function(){ btnZoom(1.6); };
       document.getElementById("z-out").onclick = function(){ btnZoom(1 / 1.6); };
     }
+    renderMapLegend();
     setTimeout(drawMap, 30);
     if (!window.__mapHi){
       window.__mapHi = 1;
